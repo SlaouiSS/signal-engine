@@ -6,7 +6,7 @@
 #
 # Node 24 LTS (docs/03-technical-spec.md Section 4.17); keep in step with .nvmrc.
 
-FROM node:24-slim
+FROM node:26-slim
 WORKDIR /app
 
 COPY package.json package-lock.json ./
