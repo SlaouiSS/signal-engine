@@ -1,0 +1,7 @@
+SOURCES (for provenance context only):
+${sources}
+
+CONTENT:
+${content}
+
+Summarise the CONTENT and output the JSON object described in the instructions.

@@ -1,0 +1,16 @@
+# Test profile — fast unit / web-slice tests that must not need Docker
+# (docs/03-technical-spec.md Section 16.1: API tests run separately from
+# Testcontainers integration tests).
+#
+# With a real Spring Data JDBC persistence layer, a full @SpringBootTest now
+# requires a database, so "does the whole context load" is an integration test
+# (see AbstractPersistenceIntegrationTest). Only web-slice tests (@WebMvcTest)
+# use this profile.
+
+server:
+  address: 127.0.0.1
+  port: 0 # random port
+
+springdoc:
+  swagger-ui:
+    enabled: false

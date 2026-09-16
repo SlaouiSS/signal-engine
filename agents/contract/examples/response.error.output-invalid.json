@@ -1,0 +1,14 @@
+{
+  "correlationId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+  "contractVersion": 1,
+  "capability": "echo",
+  "status": "error",
+  "error": {
+    "code": "AI_OUTPUT_INVALID",
+    "category": "ai_output",
+    "retryable": false,
+    "message": "the model output failed validation after one repair attempt",
+    "correlationId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+    "details": { "firstError": "not valid JSON", "repairedError": "characterCount: value is not a valid integer" }
+  }
+}

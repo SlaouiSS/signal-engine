@@ -1,0 +1,221 @@
+{
+  "$defs": {
+    "ErrorBody": {
+      "additionalProperties": false,
+      "properties": {
+        "category": {
+          "$ref": "#/$defs/ErrorCategory"
+        },
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "correlationId": {
+          "title": "Correlationid",
+          "type": "string"
+        },
+        "details": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Details"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "retryable": {
+          "title": "Retryable",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "code",
+        "category",
+        "retryable",
+        "message",
+        "correlationId"
+      ],
+      "title": "ErrorBody",
+      "type": "object"
+    },
+    "ErrorCategory": {
+      "description": "Coarse grouping that drives the Java side's retry decision.",
+      "enum": [
+        "request",
+        "ai_output",
+        "provider",
+        "timeout",
+        "internal"
+      ],
+      "title": "ErrorCategory",
+      "type": "string"
+    },
+    "ErrorResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "capability": {
+          "title": "Capability",
+          "type": "string"
+        },
+        "contractVersion": {
+          "title": "Contractversion",
+          "type": "integer"
+        },
+        "correlationId": {
+          "title": "Correlationid",
+          "type": "string"
+        },
+        "error": {
+          "$ref": "#/$defs/ErrorBody"
+        },
+        "status": {
+          "const": "error",
+          "default": "error",
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "correlationId",
+        "contractVersion",
+        "capability",
+        "error"
+      ],
+      "title": "ErrorResponse",
+      "type": "object"
+    },
+    "RequestEnvelope": {
+      "additionalProperties": false,
+      "description": "Every capability request. ``payload`` is validated a second time against the\ntarget capability's own request model.",
+      "properties": {
+        "capability": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Capability",
+          "type": "string"
+        },
+        "contractVersion": {
+          "title": "Contractversion",
+          "type": "integer"
+        },
+        "correlationId": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Correlationid",
+          "type": "string"
+        },
+        "payload": {
+          "additionalProperties": true,
+          "title": "Payload",
+          "type": "object"
+        }
+      },
+      "required": [
+        "correlationId",
+        "contractVersion",
+        "capability",
+        "payload"
+      ],
+      "title": "RequestEnvelope",
+      "type": "object"
+    },
+    "ResponseMeta": {
+      "additionalProperties": false,
+      "description": "Model/provider metadata carried on every successful response\n(docs/03-technical-spec.md Section 8.2).",
+      "properties": {
+        "durationMillis": {
+          "minimum": 0,
+          "title": "Durationmillis",
+          "type": "integer"
+        },
+        "model": {
+          "title": "Model",
+          "type": "string"
+        },
+        "promptVersion": {
+          "title": "Promptversion",
+          "type": "string"
+        },
+        "provider": {
+          "title": "Provider",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "model",
+        "promptVersion",
+        "durationMillis"
+      ],
+      "title": "ResponseMeta",
+      "type": "object"
+    },
+    "SuccessResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "capability": {
+          "title": "Capability",
+          "type": "string"
+        },
+        "contractVersion": {
+          "title": "Contractversion",
+          "type": "integer"
+        },
+        "correlationId": {
+          "title": "Correlationid",
+          "type": "string"
+        },
+        "meta": {
+          "$ref": "#/$defs/ResponseMeta"
+        },
+        "result": {
+          "additionalProperties": true,
+          "title": "Result",
+          "type": "object"
+        },
+        "status": {
+          "const": "success",
+          "default": "success",
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "correlationId",
+        "contractVersion",
+        "capability",
+        "result",
+        "meta"
+      ],
+      "title": "SuccessResponse",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "errorResponse": {
+      "$ref": "#/$defs/ErrorResponse"
+    },
+    "request": {
+      "$ref": "#/$defs/RequestEnvelope"
+    },
+    "successResponse": {
+      "$ref": "#/$defs/SuccessResponse"
+    }
+  },
+  "required": [
+    "request",
+    "successResponse",
+    "errorResponse"
+  ],
+  "title": "Signal Engine AI capability contract",
+  "type": "object",
+  "x-contract-version": 1
+}

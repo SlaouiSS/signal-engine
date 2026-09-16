@@ -1,0 +1,12 @@
+{
+  "correlationId": "8b1a9953-1f3c-4b8e-9a1d-2c4e6f8a0b2d",
+  "contractVersion": 1,
+  "capability": "embed",
+  "payload": {
+    "texts": [
+      "What recent European regulation affects AI providers?",
+      "The AI Act sets staggered obligations for providers of general-purpose models."
+    ],
+    "role": "passage"
+  }
+}

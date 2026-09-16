@@ -1,0 +1,335 @@
+{
+  "version": "2026-09-07",
+  "description": "Signal Engine embedding benchmark corpus. 36 English passages resembling normalized, chunked article content across the six areas of interest (docs/05-data-model.md Section 6). Hand-written; no real article is reproduced. Some passages deliberately share vocabulary across areas (AI demand in a markets passage, AI providers in a law passage) to expose lexical-vs-semantic retrieval differences.",
+  "passages": [
+    {
+      "id": "ait-01",
+      "area": "AI & Technology",
+      "title": "Small language models move onto consumer devices",
+      "text": "A new wave of laptops and phones now runs a compact language model directly on the device, with no network round trip. The appeal is less raw capability than latency, cost and privacy: an assistant that answers locally sends no user text anywhere and keeps working offline. The models are small by current standards, typically one to eight billion parameters, and four-bit quantization has become routine with only a modest accuracy cost for everyday tasks such as rewriting, summarization and structured extraction.",
+      "source_id": "src-technica",
+      "source_name": "Signal Technica",
+      "url": "https://example.test/technica/on-device-slm"
+    },
+    {
+      "id": "ait-02",
+      "area": "AI & Technology",
+      "title": "AI Act obligations for general-purpose model providers take shape",
+      "text": "The European Union's AI regulation now sets staggered duties for providers of general-purpose AI models. Every provider must publish a summary of training data and a copyright-compliance policy; models judged to carry systemic risk face additional evaluation, incident reporting and cybersecurity requirements. The obligations phase in over two years, and guidance for open-weight releases is still being drafted. Vendors outside the bloc are covered when their models are placed on the EU market.",
+      "source_id": "src-lex",
+      "source_name": "Signal Lex",
+      "url": "https://example.test/lex/ai-act-gpai"
+    },
+    {
+      "id": "ait-03",
+      "area": "AI & Technology",
+      "title": "Open-weight model licences diverge from open source",
+      "text": "Several widely used model releases ship weights under bespoke licences that restrict competing hosted services, cap monthly active users, or forbid training other models on their outputs. Advocates argue the terms fund continued research; critics say calling the releases open is misleading because the licences fail the standard open-source criteria. Downstream builders increasingly read the fine print before committing, since a licence change on a base model can strand a product.",
+      "source_id": "src-technica",
+      "source_name": "Signal Technica",
+      "url": "https://example.test/technica/open-weight-licences"
+    },
+    {
+      "id": "ait-04",
+      "area": "AI & Technology",
+      "title": "Power availability becomes the binding constraint on new data centres",
+      "text": "Operators planning large training and inference clusters increasingly find that grid capacity, not capital or chips, sets the schedule. Interconnection queues in several regions stretch past four years, and some projects now pair with on-site gas generation or long-term nuclear contracts to secure firm power. Utilities are revising load forecasts sharply upward, and regulators are weighing whether large flexible loads should be curtailed first during peak demand.",
+      "source_id": "src-grid",
+      "source_name": "Signal Grid Report",
+      "url": "https://example.test/grid/datacenter-power"
+    },
+    {
+      "id": "ait-05",
+      "area": "AI & Technology",
+      "title": "Retrieval-augmented generation becomes the default enterprise pattern",
+      "text": "Rather than fine-tune a model on internal documents, most enterprise teams now retrieve relevant passages at query time and pass them to the model as context, with citations back to the source. The approach keeps answers current, makes the evidence auditable, and sidesteps the cost of repeated training runs. Attention has shifted to retrieval quality, chunking strategy and grounding checks, which now do more work than prompt wording.",
+      "source_id": "src-technica",
+      "source_name": "Signal Technica",
+      "url": "https://example.test/technica/rag-default"
+    },
+    {
+      "id": "ait-06",
+      "area": "AI & Technology",
+      "title": "Export controls tighten on advanced accelerators",
+      "text": "New rules extend licensing requirements for the most capable AI accelerators and the equipment used to make them, adding performance-density thresholds that are harder to engineer around. Cloud providers must now verify the location and identity of customers renting large clusters. Chipmakers have responded with region-specific product lines, and analysts expect a persistent gap between the hardware available in different markets.",
+      "source_id": "src-grid",
+      "source_name": "Signal Grid Report",
+      "url": "https://example.test/grid/accelerator-export-controls"
+    },
+
+    {
+      "id": "mkt-01",
+      "area": "Markets & Investment",
+      "title": "Semiconductor capital spending swings back to expansion",
+      "text": "After two years of restraint, chipmakers and their equipment suppliers have raised capital budgets, citing sustained demand for accelerators used in AI training and inference. New fabs are under construction on three continents, several backed by government incentives, and lead times for lithography tools have lengthened again. Analysts caution that the industry has a long history of over-building into a demand peak, and that memory pricing remains the swing factor for margins.",
+      "source_id": "src-marketwire",
+      "source_name": "Signal Market Wire",
+      "url": "https://example.test/marketwire/semi-capex-cycle"
+    },
+    {
+      "id": "mkt-02",
+      "area": "Markets & Investment",
+      "title": "Rate cuts prompt rotation out of cash and into equities",
+      "text": "As the central bank lowers its benchmark, the trillions parked in money-market funds have begun to move. Fund flows show money shifting toward dividend payers and small-capitalisation stocks that suffered most when borrowing costs rose. Strategists are split on whether the rotation has room to run or is already priced in, and several warn that a reacceleration of inflation would reverse it quickly.",
+      "source_id": "src-marketwire",
+      "source_name": "Signal Market Wire",
+      "url": "https://example.test/marketwire/rate-cut-rotation"
+    },
+    {
+      "id": "mkt-03",
+      "area": "Markets & Investment",
+      "title": "Private credit keeps taking share from bank lending",
+      "text": "Direct-lending funds now finance a large share of mid-market buyouts, offering borrowers speed and certainty that syndicated loans cannot match. Assets under management in the asset class have roughly doubled in five years. Regulators are asking how these loans would be marked in a downturn, since they rarely trade, and whether leverage inside the funds themselves could amplify losses.",
+      "source_id": "src-marketwire",
+      "source_name": "Signal Market Wire",
+      "url": "https://example.test/marketwire/private-credit-share"
+    },
+    {
+      "id": "mkt-04",
+      "area": "Markets & Investment",
+      "title": "Sovereign wealth funds concentrate bets on compute and energy",
+      "text": "Several large state investors have disclosed sizeable new positions in data-centre developers, grid equipment makers and uranium producers, framing the theme as a decade-long build-out. The funds say the allocations are funded by trimming mega-cap technology holdings that had grown outsized. Governance groups note the increasing overlap between these funds' portfolios and their governments' industrial policy.",
+      "source_id": "src-globalcap",
+      "source_name": "Signal Global Capital",
+      "url": "https://example.test/globalcap/swf-compute-energy"
+    },
+    {
+      "id": "mkt-05",
+      "area": "Markets & Investment",
+      "title": "Supply shock sends industrial metals sharply higher",
+      "text": "A mine closure and new export restrictions in two producing countries have pushed copper and nickel to multi-year highs within weeks. Manufacturers with thin inventories are paying spot premiums, and some have restarted recycling lines that were idled when prices were low. Traders expect volatility to persist until substitute supply comes online, a process measured in quarters rather than weeks.",
+      "source_id": "src-globalcap",
+      "source_name": "Signal Global Capital",
+      "url": "https://example.test/globalcap/metals-supply-shock"
+    },
+    {
+      "id": "mkt-06",
+      "area": "Markets & Investment",
+      "title": "Retail options activity returns to record levels",
+      "text": "Volume in short-dated equity options driven by individual investors has surpassed its previous peak, concentrated in a handful of large technology names and index products. Brokers report that most of the flow expires the same day it is opened. Market-structure researchers warn that dealers hedging this activity can amplify intraday moves, making the tape choppier around key levels.",
+      "source_id": "src-marketwire",
+      "source_name": "Signal Market Wire",
+      "url": "https://example.test/marketwire/retail-options-record"
+    },
+
+    {
+      "id": "arc-01",
+      "area": "Architecture, Construction & Real Estate",
+      "title": "Mass timber moves into mid-rise offices",
+      "text": "Developers in several markets are choosing engineered timber for buildings of eight to twelve storeys, a range that was steel and concrete by default a decade ago. The driver is schedule: a timber superstructure is prefabricated off site and assembled in weeks, and the lighter frame shrinks the foundations. On a materials basis timber still costs more, so the saving is indirect, coming from less time paying for the site, the crane and the financing.",
+      "source_id": "src-buildjournal",
+      "source_name": "Signal Build Journal",
+      "url": "https://example.test/build/mass-timber-midrise"
+    },
+    {
+      "id": "arc-02",
+      "area": "Architecture, Construction & Real Estate",
+      "title": "Office-to-residential conversions gather pace in downtown cores",
+      "text": "With office vacancy stuck near record highs, cities are rewriting zoning and tax rules to encourage turning half-empty towers into apartments. The economics only work for buildings with the right floor plate and window spacing, and deep interiors often become storage or amenity space. Several jurisdictions now offer a property-tax abatement conditioned on a share of the new units being affordable.",
+      "source_id": "src-buildjournal",
+      "source_name": "Signal Build Journal",
+      "url": "https://example.test/build/office-conversions"
+    },
+    {
+      "id": "arc-03",
+      "area": "Architecture, Construction & Real Estate",
+      "title": "Skilled-trades shortage lengthens project timelines",
+      "text": "Contractors report that a shortage of electricians, pipefitters and equipment operators is now the leading cause of schedule slippage, ahead of permitting and materials. The workforce is ageing and apprenticeship pipelines have not kept up. Firms are responding with higher wages, four-day site weeks to retain crews, and a shift toward prefabricated assemblies that move labour into a controlled factory setting.",
+      "source_id": "src-buildjournal",
+      "source_name": "Signal Build Journal",
+      "url": "https://example.test/build/trades-shortage"
+    },
+    {
+      "id": "arc-04",
+      "area": "Architecture, Construction & Real Estate",
+      "title": "Embodied-carbon limits enter building codes",
+      "text": "A growing number of jurisdictions now cap the carbon emitted in producing and transporting a building's materials, not just its operational energy use. Projects must submit a lifecycle assessment at permitting, which is nudging designers toward lower-carbon concrete mixes, recycled steel and timber. Suppliers are racing to produce environmental product declarations, without which their materials cannot be specified on regulated jobs.",
+      "source_id": "src-lex",
+      "source_name": "Signal Lex",
+      "url": "https://example.test/lex/embodied-carbon-codes"
+    },
+    {
+      "id": "arc-05",
+      "area": "Architecture, Construction & Real Estate",
+      "title": "Modular housing factories chase volume to cut unit cost",
+      "text": "Prefabricated-home builders say the business only pencils out at high, steady throughput, because the factories are capital intensive and slow to build. A run of identical units keeps the line efficient; bespoke designs erase the saving. Several recent plant closures followed demand that arrived in lumpy batches rather than the smooth pipeline the model needs.",
+      "source_id": "src-buildjournal",
+      "source_name": "Signal Build Journal",
+      "url": "https://example.test/build/modular-volume"
+    },
+    {
+      "id": "arc-06",
+      "area": "Architecture, Construction & Real Estate",
+      "title": "Insurers reprice coastal and wildland property",
+      "text": "Carriers are raising premiums, tightening deductibles and, in the most exposed areas, declining to renew policies for homes near the coast or in the wildland-urban interface. Some states are expanding insurers of last resort, which shifts risk onto the broader pool. Lenders are beginning to factor the availability of insurance into whether a mortgage can close at all.",
+      "source_id": "src-globalcap",
+      "source_name": "Signal Global Capital",
+      "url": "https://example.test/globalcap/coastal-insurance"
+    },
+
+    {
+      "id": "law-01",
+      "area": "Law & Regulation",
+      "title": "New rules require an explanation for automated decisions",
+      "text": "Operators of systems that decide, or score for a decision, in credit, insurance, housing and employment must now, on request from an affected person, disclose the categories of data used and the main factors behind the specific outcome in plain language. They need not reveal model weights or a factor-by-factor numeric breakdown. The rules take effect twelve months after publication, with a further six months for small operators, and enforcement is by the regulator alone.",
+      "source_id": "src-lex",
+      "source_name": "Signal Lex",
+      "url": "https://example.test/lex/automated-decision-disclosure"
+    },
+    {
+      "id": "law-02",
+      "area": "Law & Regulation",
+      "title": "A replacement framework for transatlantic data transfers",
+      "text": "Regulators on both sides have agreed a new mechanism allowing personal data to flow between the regions without separate contractual clauses for each transfer, resting on binding commitments and an independent redress body. Privacy groups have already signalled a legal challenge, arguing the redress route is not a genuine court. Companies are told to adopt the framework but keep fallback clauses in place.",
+      "source_id": "src-lex",
+      "source_name": "Signal Lex",
+      "url": "https://example.test/lex/data-transfer-framework"
+    },
+    {
+      "id": "law-03",
+      "area": "Law & Regulation",
+      "title": "Competition authority forces changes to app-store rules",
+      "text": "Following an investigation, a platform operator must let developers steer users to outside payment options, allow alternative app marketplaces, and stop requiring its own billing system for digital goods. The operator has appealed while implementing interim changes. Developers welcomed the outcome but say the new fees attached to off-platform transactions blunt much of the benefit.",
+      "source_id": "src-lex",
+      "source_name": "Signal Lex",
+      "url": "https://example.test/lex/app-store-competition"
+    },
+    {
+      "id": "law-04",
+      "area": "Law & Regulation",
+      "title": "Right-to-repair law mandates parts and manuals",
+      "text": "Manufacturers of phones, appliances and farm equipment must make spare parts, tools and repair documentation available to independent shops and owners for a set number of years after a product's last sale, at terms comparable to those offered to authorised repairers. Software locks that block a replacement part from working are prohibited. Industry groups warned of safety risks; the legislature added a narrow exemption for certain high-voltage components.",
+      "source_id": "src-lex",
+      "source_name": "Signal Lex",
+      "url": "https://example.test/lex/right-to-repair"
+    },
+    {
+      "id": "law-05",
+      "area": "Law & Regulation",
+      "title": "A single sustainability-reporting standard is adopted",
+      "text": "The securities regulator has adopted a disclosure standard requiring listed companies to report climate-related risks, greenhouse-gas emissions across their operations and, phased in later, their supply chains, using a common template. Assurance by an independent auditor becomes mandatory after a transition period. Preparers say data collection from suppliers is the hardest part; investors say comparability across filings is the point.",
+      "source_id": "src-lex",
+      "source_name": "Signal Lex",
+      "url": "https://example.test/lex/sustainability-reporting-standard"
+    },
+    {
+      "id": "law-06",
+      "area": "Law & Regulation",
+      "title": "Court ruling reshapes gig-worker classification",
+      "text": "A high court has held that drivers and couriers for two large platforms are workers, not independent contractors, entitling them to a minimum wage, paid leave and pension contributions for the hours they are logged in and available. The platforms said they would adjust their models rather than reclassify everyone, and lawmakers are now debating a statutory test to settle the question for the whole sector.",
+      "source_id": "src-lex",
+      "source_name": "Signal Lex",
+      "url": "https://example.test/lex/gig-worker-ruling"
+    },
+
+    {
+      "id": "fas-01",
+      "area": "Fashion & Clothing",
+      "title": "The market for secondhand clothing keeps expanding",
+      "text": "Resale is growing several times faster than the wider apparel market, driven by younger shoppers who treat buying used as both a way to save money and a lower-impact choice. Brands that once ignored the channel now run their own trade-in and refurbishment programmes, partly to control how their products are represented and partly to capture a second margin. Authentication and logistics remain the hard problems at scale.",
+      "source_id": "src-threadwire",
+      "source_name": "Signal Thread Wire",
+      "url": "https://example.test/thread/resale-growth"
+    },
+    {
+      "id": "fas-02",
+      "area": "Fashion & Clothing",
+      "title": "Digital product passports arrive for textiles",
+      "text": "Garments sold in the region will soon carry a scannable identifier linking to data on fibre composition, country of manufacture, repairability and recycled content. The requirement phases in by product category, starting with outerwear and denim. Suppliers are scrambling to collect verifiable data from upstream mills, and recyclers say the fibre-composition field alone would transform their ability to sort at end of life.",
+      "source_id": "src-lex",
+      "source_name": "Signal Lex",
+      "url": "https://example.test/lex/digital-product-passport-textiles"
+    },
+    {
+      "id": "fas-03",
+      "area": "Fashion & Clothing",
+      "title": "Brands build lines around deadstock and mill surplus",
+      "text": "A number of labels now design collections around fabric that already exists: overruns, cancelled orders and end-of-roll lots bought from mills at a discount. The constraint is unpredictable quantity, so styles ship in small, numbered runs and sell out rather than restock. Buyers say the approach trims both cost and the water and dye impact of new fabric production.",
+      "source_id": "src-threadwire",
+      "source_name": "Signal Thread Wire",
+      "url": "https://example.test/thread/deadstock-lines"
+    },
+    {
+      "id": "fas-04",
+      "area": "Fashion & Clothing",
+      "title": "Sneaker collaboration drops cool off",
+      "text": "The hype cycle around limited co-branded trainers has softened: resale premiums on recent releases have collapsed, and several brands have widened distribution and raised production of once-scarce models. Retailers report that shoppers now wait for markdowns they once feared missing. Some houses are pivoting from scarcity toward durability and repair services as the story they tell.",
+      "source_id": "src-threadwire",
+      "source_name": "Signal Thread Wire",
+      "url": "https://example.test/thread/sneaker-drops-cool"
+    },
+    {
+      "id": "fas-05",
+      "area": "Fashion & Clothing",
+      "title": "On-demand manufacturing shortens the fashion supply chain",
+      "text": "Smaller labels are producing garments only after an order is placed, using digital knitting and print-to-cut lines that make a single unit economically. Lead times fall to days, unsold inventory approaches zero, and design iteration speeds up. The trade-off is a higher per-unit cost and a ceiling on volume, so the model suits niche and premium ranges rather than mass basics.",
+      "source_id": "src-threadwire",
+      "source_name": "Signal Thread Wire",
+      "url": "https://example.test/thread/on-demand-manufacturing"
+    },
+    {
+      "id": "fas-06",
+      "area": "Fashion & Clothing",
+      "title": "Bans on forever chemicals reach outdoor apparel",
+      "text": "Several jurisdictions have set deadlines to end the sale of clothing treated with per- and polyfluoroalkyl substances, the water-repellent coatings long used on jackets and boots. Outdoor brands have been reformulating with silicone- and wax-based finishes that shed water less durably, prompting a wave of consumer education about re-treating garments at home. Compliance testing for trace levels is the current sticking point.",
+      "source_id": "src-lex",
+      "source_name": "Signal Lex",
+      "url": "https://example.test/lex/pfas-apparel-ban"
+    },
+
+    {
+      "id": "biz-01",
+      "area": "Business & Opportunity Trends",
+      "title": "Small businesses adopt AI assistants for back-office work",
+      "text": "Independent firms are using conversational AI tools to draft correspondence, reconcile invoices, answer routine customer questions and summarise documents, tasks that previously justified a part-time hire or went undone. Adoption is fastest where a tool plugs into software the business already runs. Owners cite time saved rather than headcount cut, and worry mainly about accuracy on anything client-facing.",
+      "source_id": "src-ventures",
+      "source_name": "Signal Ventures Brief",
+      "url": "https://example.test/ventures/smb-ai-assistants"
+    },
+    {
+      "id": "biz-02",
+      "area": "Business & Opportunity Trends",
+      "title": "Nearshoring reshapes where mid-market companies make things",
+      "text": "Firms burned by long, fragile supply lines are moving production closer to their main markets, accepting a higher unit cost for shorter lead times and fewer surprises. The shift is creating demand for industrial space, logistics and skilled labour in a band of countries adjacent to large consumer markets. Consultants say the winners are places that can offer reliable power and a trained workforce quickly.",
+      "source_id": "src-ventures",
+      "source_name": "Signal Ventures Brief",
+      "url": "https://example.test/ventures/nearshoring-midmarket"
+    },
+    {
+      "id": "biz-03",
+      "area": "Business & Opportunity Trends",
+      "title": "B2B tools for independent creators become a category",
+      "text": "A cluster of startups now sells software to full-time creators and small media businesses: rights management, sponsorship deal flow, multi-platform publishing and revenue analytics. The pitch is that a creator is a small enterprise with enterprise problems and no operations team. Investors like the recurring revenue but question how many customers can support the pricing the tools need.",
+      "source_id": "src-ventures",
+      "source_name": "Signal Ventures Brief",
+      "url": "https://example.test/ventures/creator-b2b-tools"
+    },
+    {
+      "id": "biz-04",
+      "area": "Business & Opportunity Trends",
+      "title": "Subscription fatigue pushes vendors toward usage pricing",
+      "text": "Buyers are auditing recurring software spend and cancelling seats that go unused, and several vendors have responded by adding pay-as-you-go tiers billed on consumption rather than a fixed monthly seat. The change helps land small customers and expands with them, but makes revenue harder to forecast. Finance teams on both sides are rebuilding their models around it.",
+      "source_id": "src-ventures",
+      "source_name": "Signal Ventures Brief",
+      "url": "https://example.test/ventures/usage-pricing-shift"
+    },
+    {
+      "id": "biz-05",
+      "area": "Business & Opportunity Trends",
+      "title": "Four-day week trials report retention gains",
+      "text": "Companies that ran reduced-hours pilots, holding pay and output targets constant, mostly report lower turnover, easier recruiting and steady or improved productivity, and most have kept the schedule. Results are weaker in roles tied to fixed coverage, such as support desks and clinics. Advocates want the evidence base broadened before treating the model as generally applicable.",
+      "source_id": "src-ventures",
+      "source_name": "Signal Ventures Brief",
+      "url": "https://example.test/ventures/four-day-week-trials"
+    },
+    {
+      "id": "biz-06",
+      "area": "Business & Opportunity Trends",
+      "title": "Investors roll up niche vertical software providers",
+      "text": "Buyout firms are acquiring and combining small software companies that each serve one industry, such as dental practices, marinas or independent pharmacies, betting that shared infrastructure and cross-selling lift margins. The strategy depends on cheap debt and on the target markets being too small to attract a large competitor. Critics note that price increases after a roll-up can invite scrutiny.",
+      "source_id": "src-ventures",
+      "source_name": "Signal Ventures Brief",
+      "url": "https://example.test/ventures/vertical-saas-rollups"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+# Local development profile (docs/03-technical-spec.md Section 15.1).
+
+management:
+  endpoint:
+    health:
+      show-details: always
+
+springdoc:
+  swagger-ui:
+    enabled: true
+
+logging:
+  level:
+    org.signalengine: DEBUG

@@ -1,0 +1,15 @@
+{
+  "correlationId": "8b1a9953-1f3c-4b8e-9a1d-2c4e6f8a0b2d",
+  "contractVersion": 1,
+  "capability": "semantic-chunk-boundary",
+  "status": "success",
+  "result": {
+    "rawText": "[2]"
+  },
+  "meta": {
+    "provider": "nvidia",
+    "model": "nvidia/nemotron-3-super-120b-a12b",
+    "promptVersion": "semantic-chunk-boundary/v1",
+    "durationMillis": 820
+  }
+}

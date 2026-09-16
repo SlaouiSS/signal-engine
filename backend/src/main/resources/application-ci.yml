@@ -1,0 +1,10 @@
+# CI profile (docs/03-technical-spec.md Section 15.1, Section 18).
+# Mirrors the test profile; kept separate so CI-only settings can diverge later.
+
+server:
+  address: 127.0.0.1
+  port: 0
+
+springdoc:
+  swagger-ui:
+    enabled: false

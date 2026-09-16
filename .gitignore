@@ -1,0 +1,91 @@
+# ============================================================
+# Secrets / local environment
+# ============================================================
+.env
+.env.*
+*.env
+!.env.example
+!.env.*.example
+
+# Local credentials / certificates
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+
+# ============================================================
+# Java / Gradle
+# ============================================================
+backend/.gradle/
+backend/build/
+backend/bin/
+backend/out/
+
+# Gradle generated files
+.gradle/
+build/
+
+# Keep Gradle Wrapper JAR versioned
+!backend/gradle/wrapper/gradle-wrapper.jar
+
+# ============================================================
+# Python
+# ============================================================
+agents/.venv/
+agents/**/__pycache__/
+agents/.pytest_cache/
+agents/.mypy_cache/
+agents/.ruff_cache/
+agents/.coverage
+agents/coverage.xml
+agents/htmlcov/
+agents/dist/
+agents/build/
+agents/*.egg-info/
+
+# Python compiled files
+*.py[cod]
+*$py.class
+
+# ============================================================
+# Node / Frontend
+# ============================================================
+frontend/node_modules/
+frontend/dist/
+frontend/coverage/
+frontend/.vite/
+frontend/*.tsbuildinfo
+
+# npm / pnpm / yarn debug logs
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ============================================================
+# IDE / Editors
+# ============================================================
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# ============================================================
+# OS
+# ============================================================
+.DS_Store
+.DS_Store?
+Thumbs.db
+Desktop.ini
+
+# ============================================================
+# Temporary / generated files
+# ============================================================
+*.tmp
+*.temp
+*.swp
+*.swo
+*~

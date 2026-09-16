@@ -1,0 +1,14 @@
+{
+  "correlationId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+  "contractVersion": 1,
+  "capability": "echo",
+  "status": "error",
+  "error": {
+    "code": "AI_PROVIDER_TIMEOUT",
+    "category": "timeout",
+    "retryable": true,
+    "message": "ollama did not respond within 60.0s",
+    "correlationId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+    "details": null
+  }
+}

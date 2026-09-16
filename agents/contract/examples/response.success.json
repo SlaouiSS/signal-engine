@@ -1,0 +1,16 @@
+{
+  "correlationId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+  "contractVersion": 1,
+  "capability": "echo",
+  "status": "success",
+  "result": {
+    "echoed": "Signal Engine ships incrementally.",
+    "characterCount": 34
+  },
+  "meta": {
+    "provider": "ollama",
+    "model": "gpt-oss:20b",
+    "promptVersion": "echo/v1",
+    "durationMillis": 812
+  }
+}

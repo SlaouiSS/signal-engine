@@ -1,0 +1,42 @@
+# Signal Engine — backend version catalog.
+#
+# Policy (docs/03-technical-spec.md Section 19.3, D22): versions for libraries
+# managed by the Spring Boot BOM are NOT pinned here — they come from the BOM via
+# the io.spring.dependency-management plugin. Only libraries and plugins the BOM
+# does not manage get an explicit version, centralized in this file.
+
+[versions]
+# Platform / runtime
+java = "21"                # Target is Java 25 LTS (D1); 21 LTS is the accepted
+                           # fallback and the version this toolchain provides.
+
+# Plugins / build tooling (not managed by the Spring Boot BOM)
+springBoot = "4.1.1"
+springDependencyManagement = "1.1.7"
+spotless = "8.10.2"
+
+# Libraries not managed by the Spring Boot BOM
+springdocOpenApi = "3.1.0"
+# Semantic chunking for RAG indexing (docs/07-rag.md Section 21;
+# docs/adr/0010-indexing-foundation-and-semantic-chunking.md). Apache-2.0, Java 21,
+# zero runtime dependencies. Only the -core module is used; the -spring-ai,
+# -tika and -unstructured adapter modules are deliberately not pulled in.
+semanticChunker = "1.0.0"
+# Deterministic HTML parsing for content extraction (docs/08-ingestion.md Section 6;
+# docs/03-technical-spec.md Section 10.1). jsoup is a mature (since 2009), MIT-licensed,
+# actively maintained, dependency-free Java HTML parser — a static DOM parser only, it
+# never executes scripts or active content (docs/10-security.md Section 7). No
+# readability/article-extraction framework is added; extraction is our own conservative,
+# deterministic logic (noise-element removal + article/main selection) on top of jsoup's
+# parser.
+jsoup = "1.23.2"
+
+[libraries]
+springdoc-openapi-starter-webmvc-ui = { module = "org.springdoc:springdoc-openapi-starter-webmvc-ui", version.ref = "springdocOpenApi" }
+semantic-chunker-core = { module = "io.github.slaouiss:semantic-chunker-core", version.ref = "semanticChunker" }
+jsoup = { module = "org.jsoup:jsoup", version.ref = "jsoup" }
+
+[plugins]
+spring-boot = { id = "org.springframework.boot", version.ref = "springBoot" }
+spring-dependency-management = { id = "io.spring.dependency-management", version.ref = "springDependencyManagement" }
+spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }

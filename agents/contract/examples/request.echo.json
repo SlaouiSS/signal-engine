@@ -1,0 +1,9 @@
+{
+  "correlationId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+  "contractVersion": 1,
+  "capability": "echo",
+  "payload": {
+    "text": "Signal Engine ships incrementally.",
+    "note": null
+  }
+}

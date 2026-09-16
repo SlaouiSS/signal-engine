@@ -1,0 +1,163 @@
+name: PR
+
+# Pull-request validation (docs/03-technical-spec.md Section 18.1).
+# Build + static quality + unit tests for the three sub-projects, a
+# dependency/image vulnerability scan, Testcontainers integration tests, and the
+# Java<->Python AI capability contract check (docs/03-technical-spec.md
+# Section 16.6; docs/adr/0006-ai-java-python-foundation.md).
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (Java / Gradle)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          # Target is Java 25 LTS (D1); 21 LTS is the accepted fallback and matches
+          # the Gradle toolchain in backend/gradle/libs.versions.toml.
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Ensure wrapper is executable
+        run: chmod +x gradlew
+      - name: Static quality (Spotless)
+        run: ./gradlew spotlessCheck
+      - name: Build, unit tests, coverage
+        run: ./gradlew build
+      - name: Integration tests (Testcontainers — real PostgreSQL 17 + pgvector)
+        run: ./gradlew integrationTest
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-reports
+          path: |
+            backend/build/reports/
+            backend/build/test-results/
+          if-no-files-found: ignore
+      - name: Package (boot jar)
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-jar
+          path: backend/build/libs/*.jar
+          if-no-files-found: error
+
+  agents:
+    name: Agents (Python / uv)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: agents
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: Sync (from uv.lock)
+        run: uv sync --frozen
+      - name: Lint (ruff)
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+      - name: Types (mypy)
+        run: uv run mypy
+      - name: Unit tests
+        run: uv run pytest -q
+      - name: AI contract schema is current
+        run: uv run python -m app.contract_schema --check
+      - name: Package (wheel)
+        run: uv build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: agents-dist
+          path: agents/dist/*
+          if-no-files-found: error
+
+  frontend:
+    name: Frontend (React / Vite)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-fund --no-audit
+      - name: Lint (ESLint)
+        run: npm run lint
+      - name: Types (tsc)
+        run: npm run typecheck
+      - name: Format check (Prettier)
+        run: npm run format:check
+      - name: Unit tests (Vitest)
+        run: npm test
+      - name: Build
+        run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frontend-bundle
+          path: frontend/dist/
+          if-no-files-found: error
+
+  contract:
+    name: Java↔Python AI contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: Python contract tests + schema drift
+        working-directory: agents
+        run: |
+          uv sync --frozen
+          uv run python -m app.contract_schema --check
+          uv run pytest -q tests/test_contract.py
+      - name: Java contract tests (shared fixtures)
+        working-directory: backend
+        run: |
+          chmod +x gradlew
+          ./gradlew test --tests 'org.signalengine.infrastructure.ai.*'
+
+  security:
+    name: Dependency & image scan (Trivy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Container images are pinned (no floating tags)
+        run: sh scripts/check-container-image-pins.sh
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "0" # report only in Phase 1; gating threshold is a later decision

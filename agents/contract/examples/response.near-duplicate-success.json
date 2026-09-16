@@ -1,0 +1,20 @@
+{
+  "correlationId": "8b1a9953-1f3c-4b8e-9a1d-2c4e6f8a0b2d",
+  "contractVersion": 1,
+  "capability": "near-duplicate",
+  "status": "success",
+  "result": {
+    "assessments": [
+      { "id": "b7c2f1a0-0000-0000-0000-000000000001", "sameUnderlyingStory": true,
+        "reason": "Both report the same central-bank rate rise of 50 basis points today." },
+      { "id": "b7c2f1a0-0000-0000-0000-000000000002", "sameUnderlyingStory": false,
+        "reason": "Unrelated story about startup-friendly cities." }
+    ]
+  },
+  "meta": {
+    "provider": "ollama",
+    "model": "gpt-oss:20b",
+    "promptVersion": "near-duplicate/v1",
+    "durationMillis": 1440
+  }
+}

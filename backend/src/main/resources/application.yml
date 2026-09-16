@@ -1,0 +1,113 @@
+# Signal Engine backend — common configuration.
+#
+# Configuration is 12-factor style (docs/03-technical-spec.md Section 15): every
+# environment-specific value can be overridden by an environment variable, and no
+# secret is committed. Only non-secret local-development defaults live in these
+# files. Profiles: local (default), test, ci, and a future prod.
+
+spring:
+  application:
+    name: signal-engine-backend
+  profiles:
+    default: local
+  mvc:
+    problemdetails:
+      enabled: true # RFC 9457 application/problem+json for error responses
+
+  # PostgreSQL 17 is the system of record (docs/03-technical-spec.md Section 4.2,
+  # D2). The password is a secret and must come from the environment
+  # (docs/03-technical-spec.md Section 15.2, 15.3); the URL and username carry
+  # non-secret local-development defaults.
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://127.0.0.1:5432/signal_engine}
+    username: ${DATABASE_USERNAME:signal_engine}
+    password: ${DATABASE_PASSWORD:signal_engine}
+
+  # Flyway Community, plain versioned SQL migrations, forward-only
+  # (docs/03-technical-spec.md Section 4.8). Migrations run on startup against the
+  # system of record.
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    clean-disabled: true
+
+server:
+  # Localhost binding by default (docs/03-technical-spec.md Section 20.1).
+  # Containers override this with SERVER_ADDRESS=0.0.0.0 and publish the port
+  # only to 127.0.0.1 on the host (see docker-compose.yml).
+  address: ${SERVER_ADDRESS:127.0.0.1}
+  port: ${SERVER_PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # `flyway` exposes the applied-migration status as a read-only
+        # diagnostic (docs/03-technical-spec.md Section 25, observability
+        # direction).
+        include: health,info,flyway
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+# Ingestion source-collection limits (docs/08-ingestion.md, docs/10-security.md
+# Section 5). Every value is a provisional default open to tuning
+# (docs/03-technical-spec.md Section 13.4, T9); the class-level defaults in
+# IngestionProperties apply when these are absent. `http-collector-source-types`
+# binds the HTTP-fetch collector to source types; it is not a resolution of the
+# source-type catalogue (Q1).
+signal-engine:
+  # Inbound request-body limit for the exposed /api/v1 API (docs/10-security.md
+  # Section 10). An oversized body is rejected with a 413 problem+json before it is
+  # buffered or parsed. Provisional default (T9) — every business payload today is
+  # a few hundred bytes.
+  api:
+    max-request-bytes: ${API_MAX_REQUEST_BYTES:262144}
+    # Cross-origin browser access to /api/v1 from the frontend dev server (Section 15.2:
+    # "CORS for local dev"). The frontend and backend are separate origins even locally
+    # (different ports); without this, the browser blocks every request the frontend makes.
+    # Comma-separated list; defaults to the frontend's own default origins.
+    cors-allowed-origins: ${API_CORS_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
+
+  ingestion:
+    allowed-schemes: ${INGESTION_ALLOWED_SCHEMES:https}
+    max-response-bytes: ${INGESTION_MAX_RESPONSE_BYTES:5242880}
+    max-redirects: ${INGESTION_MAX_REDIRECTS:3}
+    connect-timeout: ${INGESTION_CONNECT_TIMEOUT:10s}
+    request-timeout: ${INGESTION_REQUEST_TIMEOUT:30s}
+    http-collector-source-types: ${INGESTION_HTTP_COLLECTOR_SOURCE_TYPES:http}
+
+  # Java -> Python AI capability service (docs/03-technical-spec.md Section 8;
+  # docs/adr/0006-ai-java-python-foundation.md). The request timeout is kept
+  # longer than the Python model timeout on purpose (Section 8.5). 280s/240s
+  # (was 90s/60s) reflects measured CPU-only inference latency for the selected
+  # local model (gpt-oss:20b, a reasoning model with hidden "thinking" tokens on
+  # every call) once it was actually run end to end — a trivial prompt alone took
+  # ~14s on a 12-core host with no GPU; real near-duplicate/relevance prompts are
+  # longer.
+  ai:
+    agents-base-url: ${AGENTS_BASE_URL:http://127.0.0.1:8100}
+    request-timeout: ${AI_REQUEST_TIMEOUT:280s}
+    connect-timeout: ${AI_CONNECT_TIMEOUT:5s}
+
+  # Semantic near-duplicate grouping bounds (docs/adr/0007-semantic-deduplication-
+  # relevant-information.md). candidate-pool-size caps the AI comparisons per item
+  # (keeps it away from O(n^2)); neither value resolves the threshold question
+  # (Q12/T15).
+  near-duplicate:
+    candidate-pool-size: ${NEAR_DUPLICATE_CANDIDATE_POOL_SIZE:10}
+    batch-limit: ${NEAR_DUPLICATE_BATCH_LIMIT:50}
+
+  # Relevance -> importance -> Signal -> Summary pipeline
+  # (docs/adr/0008-relevance-importance-signal-summary.md). batch-limit is a
+  # provisional default; it resolves neither the signal-selection criteria
+  # (Q4/T16) nor the summary form/length (Q14).
+  signal-pipeline:
+    batch-limit: ${SIGNAL_PIPELINE_BATCH_LIMIT:50}

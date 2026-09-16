@@ -1,0 +1,69 @@
+/**
+ * Design tokens for the Signal Engine visual system: the single source of truth for color,
+ * spacing, radius, shadow, and typography. Every other stylesheet and component reads these
+ * custom properties rather than hard-coding values, so the visual language stays coherent and can
+ * be adjusted in one place.
+ */
+:root {
+  /* Surfaces */
+  --color-bg: #f5f6fa;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f0f1f6;
+
+  /* Borders */
+  --color-border: #e3e5ec;
+  --color-border-strong: #cbcfdb;
+
+  /* Text hierarchy */
+  --color-text: #161a24;
+  --color-text-secondary: #4c5266;
+  --color-text-muted: #8991a3;
+  --color-text-on-accent: #ffffff;
+
+  /* Accent (brand / primary actions / active navigation) */
+  --color-accent: #3547d1;
+  --color-accent-hover: #2a38ab;
+  --color-accent-subtle: #ecefff;
+
+  /* Status */
+  --color-success: #157a4d;
+  --color-success-subtle: #e3f6ec;
+  --color-warning: #93650a;
+  --color-warning-subtle: #fbf1da;
+  --color-danger: #b3261e;
+  --color-danger-subtle: #fbeae9;
+  --color-info: #1c5fa8;
+  --color-info-subtle: #e8f2fc;
+
+  --focus-ring: 0 0 0 3px rgba(53, 71, 209, 0.32);
+
+  /* Typography */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.8125rem;
+  --font-size-md: 0.9375rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.5rem;
+  --line-height-body: 1.55;
+  --line-height-tight: 1.25;
+
+  /* Spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  /* Shadow — restrained, used sparingly on surfaces */
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.06);
+  --shadow-md: 0 4px 10px -2px rgba(16, 24, 40, 0.08), 0 2px 4px -2px rgba(16, 24, 40, 0.04);
+
+  --content-max-width: 1120px;
+}

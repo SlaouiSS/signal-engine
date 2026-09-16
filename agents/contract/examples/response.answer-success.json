@@ -1,0 +1,12 @@
+{
+  "correlationId": "a1b2c3d4-0000-4000-8000-000000000009",
+  "contractVersion": 1,
+  "capability": "answer",
+  "status": "success",
+  "result": {
+    "answered": true,
+    "answer": "The rules for the highest-risk systems apply first, as the AI Act phases in over two years after adoption.",
+    "citations": [{ "passageId": "doc-eu-ai-act::0" }]
+  },
+  "meta": { "provider": "ollama", "model": "gpt-oss:20b", "promptVersion": "answer/v1", "durationMillis": 1420 }
+}

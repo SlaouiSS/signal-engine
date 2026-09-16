@@ -1,0 +1,8 @@
+${original}
+
+---
+Your previous answer was rejected by validation:
+
+  ${error}
+
+Return ONLY the corrected JSON object, nothing else.

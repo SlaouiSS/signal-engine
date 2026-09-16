@@ -1,0 +1,10 @@
+AREAS OF INTEREST:
+${areas}
+
+USER INTERESTS:
+${interests}
+
+ITEM:
+${item}
+
+Assess the ITEM's relevance and output the JSON object described in the instructions.

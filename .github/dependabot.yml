@@ -1,0 +1,35 @@
+version: 2
+
+# Automated dependency-update PRs across every ecosystem
+# (docs/03-technical-spec.md Section 18.1, 19.3; docs/10-security.md Section 17).
+# Every update PR must pass the full CI pipeline before merge.
+
+updates:
+  - package-ecosystem: gradle
+    directory: /backend
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: uv
+    directory: /agents
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: docker
+    directories:
+      - /backend
+      - /agents
+      - /frontend
+      - / # the root docker-compose.yml (db, ollama images)
+    schedule:
+      interval: weekly

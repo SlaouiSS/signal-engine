@@ -1,0 +1,24 @@
+# Integration profile — @SpringBootTest against a real PostgreSQL 17 + pgvector
+# provided by Testcontainers (docs/03-technical-spec.md Section 16.1, 16.5, 4.9).
+#
+# The datasource is supplied at runtime by @ServiceConnection from the container,
+# so no url/username/password is set here. Flyway runs the real migrations on
+# context startup, exactly as in production.
+
+spring:
+  flyway:
+    enabled: true
+    clean-disabled: false # each test run gets a fresh container
+
+management:
+  endpoint:
+    health:
+      show-details: always # so tests can assert on the db component
+
+server:
+  address: 127.0.0.1
+  port: 0
+
+springdoc:
+  swagger-ui:
+    enabled: false

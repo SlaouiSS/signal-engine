@@ -1,0 +1,14 @@
+{
+  "correlationId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+  "contractVersion": 1,
+  "capability": "echo",
+  "status": "error",
+  "error": {
+    "code": "AI_REQUEST_INVALID",
+    "category": "request",
+    "retryable": false,
+    "message": "echo payload is invalid",
+    "correlationId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+    "details": { "errors": [{ "loc": ["text"], "msg": "Field required" }] }
+  }
+}

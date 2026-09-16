@@ -1,0 +1,42 @@
+{
+  "version": "2026-09-08",
+  "description": "Signal Engine RAG evaluation dataset (Task 8.6). Small, hand-authored, checked-in. Independent of any production database and of external web access. Passage ids are synthetic and belong only to this fixture — they are not real indexed passage ids. Grades follow the Task 8.3A convention: 2 = directly relevant, 1 = partially relevant. 'answerable' is whether a correct system answers the query from this corpus rather than abstaining. Extend by appending a judgement object.",
+  "judgements": [
+    {
+      "query": "How much is Acme paying to acquire Beta?",
+      "answerable": true,
+      "relevant": [
+        { "passageId": "eval-acme::0", "grade": 2 },
+        { "passageId": "eval-acme::1", "grade": 1 }
+      ]
+    },
+    {
+      "query": "When is the Acme and Beta deal expected to close?",
+      "answerable": true,
+      "relevant": [{ "passageId": "eval-acme::0", "grade": 2 }]
+    },
+    {
+      "query": "What does Beta Ltd manufacture?",
+      "answerable": true,
+      "relevant": [{ "passageId": "eval-acme::2", "grade": 2 }]
+    },
+    {
+      "query": "Which regulator approved the transatlantic data transfer framework?",
+      "answerable": true,
+      "relevant": [
+        { "passageId": "eval-law::0", "grade": 2 },
+        { "passageId": "eval-law::1", "grade": 1 }
+      ]
+    },
+    {
+      "query": "What penalties does the new automated-decision rule impose for non-compliance?",
+      "answerable": false,
+      "relevant": []
+    },
+    {
+      "query": "Who is the chief executive of Acme Corp?",
+      "answerable": false,
+      "relevant": []
+    }
+  ]
+}

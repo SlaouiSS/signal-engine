@@ -1,0 +1,11 @@
+{
+  "correlationId": "a1b2c3d4-0000-4000-8000-000000000003",
+  "contractVersion": 1,
+  "capability": "summarize",
+  "status": "success",
+  "result": {
+    "summary": "The EU has formally adopted the AI Act. It imposes tiered obligations based on risk level and phases in over two years, with the highest-risk rules taking effect first.",
+    "groundingNotes": "Drawn entirely from the supplied content; no added analysis."
+  },
+  "meta": { "provider": "ollama", "model": "gpt-oss:20b", "promptVersion": "summarize/v1", "durationMillis": 1180 }
+}

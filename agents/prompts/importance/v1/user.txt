@@ -1,0 +1,9 @@
+RELEVANCE CONTEXT:
+- areas: ${areas}
+- why it was found relevant: ${relevance_reason}
+
+ITEM:
+${item}
+
+Judge whether the ITEM is important enough to become a signal and output the JSON
+object described in the instructions.

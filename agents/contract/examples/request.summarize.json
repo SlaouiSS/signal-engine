@@ -1,0 +1,9 @@
+{
+  "correlationId": "a1b2c3d4-0000-4000-8000-000000000003",
+  "contractVersion": 1,
+  "capability": "summarize",
+  "payload": {
+    "content": "The European Union formally adopted the AI Act today. It sets tiered obligations by risk level and phases in over the next two years, with the highest-risk rules applying first.",
+    "sources": [ { "name": "Example Newswire", "url": "https://ex.test/eu-ai-act" } ]
+  }
+}

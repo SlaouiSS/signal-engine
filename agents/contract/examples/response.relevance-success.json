@@ -1,0 +1,13 @@
+{
+  "correlationId": "a1b2c3d4-0000-4000-8000-000000000001",
+  "contractVersion": 1,
+  "capability": "relevance",
+  "status": "success",
+  "result": {
+    "relevant": true,
+    "reason": "A binding EU regulation of AI, directly matching the user's regulation and AI interests.",
+    "matchedAreaCodes": ["LAW_AND_REGULATION", "AI_AND_TECHNOLOGY"],
+    "matchedInterestIds": ["1f7b1e2a-0000-4000-8000-000000000010"]
+  },
+  "meta": { "provider": "ollama", "model": "gpt-oss:20b", "promptVersion": "relevance/v1", "durationMillis": 920 }
+}

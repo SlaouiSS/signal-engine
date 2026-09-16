@@ -1,0 +1,4 @@
+# Signal Engine — outbound source-fetch DNS-rebinding hardening (docs/adr/0017).
+# Installs PinAwareResolver JVM-wide. Inert unless HttpSourceCollector has an
+# active address pin for the hostname being resolved.
+org.signalengine.infrastructure.ingestion.PinningInetAddressResolverProvider

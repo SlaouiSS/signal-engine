@@ -1,0 +1,7 @@
+CANDIDATE:
+${candidate}
+
+COMPARISONS:
+${comparisons}
+
+For each comparison above, output the JSON object described in the instructions.

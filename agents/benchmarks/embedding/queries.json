@@ -1,0 +1,180 @@
+{
+  "version": "2026-09-07",
+  "description": "Signal Engine embedding benchmark queries with HUMAN-AUTHORED relevance labels (no LLM was used to assign relevance). Each query targets the corpus of the same version. relevant is a list of {id, grade}: grade 2 = the passage directly answers the query; grade 1 = the passage is partially relevant / useful context. A passage not listed is judged not relevant. 'pattern' records the retrieval challenge the query is meant to exercise.",
+  "grades": { "2": "directly relevant", "1": "partially relevant" },
+  "queries": [
+    {
+      "id": "q-ait-1",
+      "area": "AI & Technology",
+      "pattern": "exact_concept",
+      "query": "Which European Union law creates obligations for providers of general-purpose AI models?",
+      "relevant": [{ "id": "ait-02", "grade": 2 }]
+    },
+    {
+      "id": "q-ait-2",
+      "area": "AI & Technology",
+      "pattern": "paraphrase",
+      "query": "Why are companies putting retrieval and citations in front of a language model instead of retraining it on their documents?",
+      "relevant": [{ "id": "ait-05", "grade": 2 }, { "id": "ait-01", "grade": 1 }]
+    },
+    {
+      "id": "q-ait-3",
+      "area": "AI & Technology",
+      "pattern": "implicit_semantic",
+      "query": "What is preventing new AI compute clusters from being built on schedule?",
+      "relevant": [{ "id": "ait-04", "grade": 2 }]
+    },
+    {
+      "id": "q-ait-4",
+      "area": "AI & Technology",
+      "pattern": "terminology_variation",
+      "query": "Are so-called open model releases actually open source, or do their licences restrict use?",
+      "relevant": [{ "id": "ait-03", "grade": 2 }]
+    },
+
+    {
+      "id": "q-mkt-1",
+      "area": "Markets & Investment",
+      "pattern": "exact_concept",
+      "query": "How is the semiconductor capital investment cycle changing?",
+      "relevant": [{ "id": "mkt-01", "grade": 2 }]
+    },
+    {
+      "id": "q-mkt-2",
+      "area": "Markets & Investment",
+      "pattern": "paraphrase",
+      "query": "Where is the money in money-market funds going now that the central bank is lowering interest rates?",
+      "relevant": [{ "id": "mkt-02", "grade": 2 }]
+    },
+    {
+      "id": "q-mkt-3",
+      "area": "Markets & Investment",
+      "pattern": "implicit_semantic",
+      "query": "Who is financing mid-market buyouts as banks pull back from lending?",
+      "relevant": [{ "id": "mkt-03", "grade": 2 }]
+    },
+    {
+      "id": "q-mkt-4",
+      "area": "Markets & Investment",
+      "pattern": "cross_wording",
+      "query": "State-backed investors are moving money into data centres and electricity infrastructure",
+      "relevant": [{ "id": "mkt-04", "grade": 2 }, { "id": "ait-04", "grade": 1 }]
+    },
+
+    {
+      "id": "q-arc-1",
+      "area": "Architecture, Construction & Real Estate",
+      "pattern": "exact_concept",
+      "query": "Why are developers using engineered timber for mid-rise office buildings?",
+      "relevant": [{ "id": "arc-01", "grade": 2 }]
+    },
+    {
+      "id": "q-arc-2",
+      "area": "Architecture, Construction & Real Estate",
+      "pattern": "paraphrase",
+      "query": "What are cities doing about half-empty office towers in their downtowns?",
+      "relevant": [{ "id": "arc-02", "grade": 2 }]
+    },
+    {
+      "id": "q-arc-3",
+      "area": "Architecture, Construction & Real Estate",
+      "pattern": "terminology_variation",
+      "query": "Building codes that cap the embodied carbon of construction materials",
+      "relevant": [{ "id": "arc-04", "grade": 2 }]
+    },
+    {
+      "id": "q-arc-4",
+      "area": "Architecture, Construction & Real Estate",
+      "pattern": "specific_fact",
+      "query": "What did contractors identify as the leading cause of project schedule slippage?",
+      "relevant": [{ "id": "arc-03", "grade": 2 }]
+    },
+
+    {
+      "id": "q-law-1",
+      "area": "Law & Regulation",
+      "pattern": "exact_concept",
+      "query": "What recent rules require companies to explain automated decisions to the individuals they affect?",
+      "relevant": [{ "id": "law-01", "grade": 2 }]
+    },
+    {
+      "id": "q-law-2",
+      "area": "Law & Regulation",
+      "pattern": "cross_wording",
+      "query": "Independent repair shops can now obtain spare parts and service manuals from manufacturers",
+      "relevant": [{ "id": "law-04", "grade": 2 }]
+    },
+    {
+      "id": "q-law-3",
+      "area": "Law & Regulation",
+      "pattern": "paraphrase",
+      "query": "A court has ruled that drivers working for delivery platforms are employees, not self-employed contractors",
+      "relevant": [{ "id": "law-06", "grade": 2 }]
+    },
+    {
+      "id": "q-law-4",
+      "area": "Law & Regulation",
+      "pattern": "terminology_variation",
+      "query": "New mandatory climate and sustainability disclosure standard for publicly listed companies",
+      "relevant": [{ "id": "law-05", "grade": 2 }]
+    },
+
+    {
+      "id": "q-fas-1",
+      "area": "Fashion & Clothing",
+      "pattern": "exact_concept",
+      "query": "Why is the market for secondhand and resale clothing growing?",
+      "relevant": [{ "id": "fas-01", "grade": 2 }]
+    },
+    {
+      "id": "q-fas-2",
+      "area": "Fashion & Clothing",
+      "pattern": "terminology_variation",
+      "query": "Bans on forever chemicals in waterproof outdoor jackets and boots",
+      "relevant": [{ "id": "fas-06", "grade": 2 }]
+    },
+    {
+      "id": "q-fas-3",
+      "area": "Fashion & Clothing",
+      "pattern": "cross_wording",
+      "query": "Clothing labels that build collections from leftover and surplus mill fabric",
+      "relevant": [{ "id": "fas-03", "grade": 2 }]
+    },
+    {
+      "id": "q-fas-4",
+      "area": "Fashion & Clothing",
+      "pattern": "paraphrase",
+      "query": "Garments will carry a scannable identifier with information on fibre content and recyclability",
+      "relevant": [{ "id": "fas-02", "grade": 2 }]
+    },
+
+    {
+      "id": "q-biz-1",
+      "area": "Business & Opportunity Trends",
+      "pattern": "exact_concept",
+      "query": "What is driving small and independent businesses to adopt AI assistant tools?",
+      "relevant": [{ "id": "biz-01", "grade": 2 }]
+    },
+    {
+      "id": "q-biz-2",
+      "area": "Business & Opportunity Trends",
+      "pattern": "paraphrase",
+      "query": "Mid-sized companies are moving production closer to their main markets after being hurt by long supply chains",
+      "relevant": [{ "id": "biz-02", "grade": 2 }]
+    },
+    {
+      "id": "q-biz-3",
+      "area": "Business & Opportunity Trends",
+      "pattern": "implicit_semantic",
+      "query": "Software priced by how much you actually use it rather than a fixed number of monthly seats",
+      "relevant": [{ "id": "biz-04", "grade": 2 }]
+    },
+    {
+      "id": "q-biz-4",
+      "area": "Business & Opportunity Trends",
+      "pattern": "cross_wording",
+      "query": "Buyout firms are combining small software companies that each serve a single industry",
+      "relevant": [{ "id": "biz-06", "grade": 2 }]
+    }
+  ]
+}

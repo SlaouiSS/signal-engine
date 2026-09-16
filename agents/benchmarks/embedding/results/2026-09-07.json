@@ -1,0 +1,3336 @@
+{
+  "corpus_version": "2026-09-07",
+  "generated_utc": "2026-09-07T11:42:08+00:00",
+  "k_values": [
+    1,
+    3,
+    5,
+    10
+  ],
+  "markdown_table": "| Model | Runtime | Dim | R@1 | R@3 | R@5 | R@10 | MRR | nDCG@10 | Query ms | Corpus s | Status |\n|---|---|---|---|---|---|---|---|---|---|---|---|\n| bge-m3 | ollama | 1024 | 0.917 | 1.000 | 1.000 | 1.000 | 0.979 | 0.983 | 168 | 13.6 | OK |\n| nomic-embed-text | ollama | 768 | 0.917 | 0.979 | 1.000 | 1.000 | 0.979 | 0.982 | 76 | 4.7 | OK |\n| mxbai-embed-large | ollama | 1024 | 0.917 | 1.000 | 1.000 | 1.000 | 0.979 | 0.985 | 160 | 11.9 | OK |\n| snowflake-arctic-embed2 | ollama | 1024 | 0.958 | 1.000 | 1.000 | 1.000 | 1.000 | 0.999 | 195 | 15.3 | OK |\n| embeddinggemma | ollama | 768 | 0.958 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 123 | 5.3 | OK |\n| granite-embedding:278m | ollama | 768 | 0.958 | 0.979 | 1.000 | 1.000 | 1.000 | 0.996 | 128 | 4.7 | OK |",
+  "ollama_url": "http://127.0.0.1:11434",
+  "passages": 36,
+  "queries": 24,
+  "queries_version": "2026-09-07",
+  "runs": [
+    {
+      "detail": [
+        {
+          "area": "AI & Technology",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "exact_concept",
+          "query_id": "q-ait-1",
+          "relevant": [
+            "ait-02"
+          ],
+          "top5": [
+            "ait-02",
+            "ait-06",
+            "law-04",
+            "law-01",
+            "law-02"
+          ]
+        },
+        {
+          "area": "AI & Technology",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "paraphrase",
+          "query_id": "q-ait-2",
+          "relevant": [
+            "ait-01",
+            "ait-05"
+          ],
+          "top5": [
+            "ait-05",
+            "ait-01",
+            "biz-01",
+            "mkt-01",
+            "ait-03"
+          ]
+        },
+        {
+          "area": "AI & Technology",
+          "first_relevant_rank": 2,
+          "ndcg@10": 0.6309,
+          "pattern": "implicit_semantic",
+          "query_id": "q-ait-3",
+          "relevant": [
+            "ait-04"
+          ],
+          "top5": [
+            "ait-06",
+            "ait-04",
+            "mkt-01",
+            "arc-05",
+            "ait-02"
+          ]
+        },
+        {
+          "area": "AI & Technology",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "terminology_variation",
+          "query_id": "q-ait-4",
+          "relevant": [
+            "ait-03"
+          ],
+          "top5": [
+            "ait-03",
+            "ait-02",
+            "law-04",
+            "law-03",
+            "ait-06"
+          ]
+        },
+        {
+          "area": "Markets & Investment",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "exact_concept",
+          "query_id": "q-mkt-1",
+          "relevant": [
+            "mkt-01"
+          ],
+          "top5": [
+            "mkt-01",
+            "mkt-04",
+            "mkt-02",
+            "ait-04",
+            "law-05"
+          ]
+        },
+        {
+          "area": "Markets & Investment",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "paraphrase",
+          "query_id": "q-mkt-2",
+          "relevant": [
+            "mkt-02"
+          ],
+          "top5": [
+            "mkt-02",
+            "mkt-03",
+            "mkt-04",
+            "biz-02",
+            "mkt-05"
+          ]
+        },
+        {
+          "area": "Markets & Investment",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "implicit_semantic",
+          "query_id": "q-mkt-3",
+          "relevant": [
+            "mkt-03"
+          ],
+          "top5": [
+            "mkt-03",
+            "mkt-02",
+            "biz-06",
+            "biz-02",
+            "arc-06"
+          ]
+        },
+        {
+          "area": "Markets & Investment",
+          "first_relevant_rank": 1,
+          "ndcg@10": 0.9639,
+          "pattern": "cross_wording",
+          "query_id": "q-mkt-4",
+          "relevant": [
+            "ait-04",
+            "mkt-04"
+          ],
+          "top5": [
+            "mkt-04",
+            "mkt-01",
+            "ait-04",
+            "mkt-02",
+            "biz-02"
+          ]
+        },
+        {
+          "area": "Architecture, Construction & Real Estate",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "exact_concept",
+          "query_id": "q-arc-1",
+          "relevant": [
+            "arc-01"
+          ],
+          "top5": [
+            "arc-01",
+            "arc-02",
+            "arc-04",
+            "biz-02",
+            "arc-03"
+          ]
+        },
+        {
+          "area": "Architecture, Construction & Real Estate",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "paraphrase",
+          "query_id": "q-arc-2",
+          "relevant": [
+            "arc-02"
+          ],
+          "top5": [
+            "arc-02",
+            "arc-01",
+            "arc-06",
+            "biz-01",
+            "mkt-04"
+          ]
+        },
+        {
+          "area": "Architecture, Construction & Real Estate",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "terminology_variation",
+          "query_id": "q-arc-3",
+          "relevant": [
+            "arc-04"
+          ],
+          "top5": [
+            "arc-04",
+            "arc-01",
+            "arc-02",
+            "fas-02",
+            "arc-05"
+          ]
+        },
+        {
+          "area": "Architecture, Construction & Real Estate",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "specific_fact",
+          "query_id": "q-arc-4",
+          "relevant": [
+            "arc-03"
+          ],
+          "top5": [
+            "arc-03",
+            "ait-04",
+            "arc-05",
+            "arc-01",
+            "mkt-01"
+          ]
+        },
+        {
+          "area": "Law & Regulation",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "exact_concept",
+          "query_id": "q-law-1",
+          "relevant": [
+            "law-01"
+          ],
+          "top5": [
+            "law-01",
+            "ait-02",
+            "biz-01",
+            "law-05",
+            "ait-06"
+          ]
+        },
+        {
+          "area": "Law & Regulation",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "cross_wording",
+          "query_id": "q-law-2",
+          "relevant": [
+            "law-04"
+          ],
+          "top5": [
+            "law-04",
+            "biz-01",
+            "biz-03",
+            "fas-01",
+            "biz-02"
+          ]
+        },
+        {
+          "area": "Law & Regulation",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "paraphrase",
+          "query_id": "q-law-3",
+          "relevant": [
+            "law-06"
+          ],
+          "top5": [
+            "law-06",
+            "law-03",
+            "law-01",
+            "law-02",
+            "biz-03"
+          ]
+        },
+        {
+          "area": "Law & Regulation",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "terminology_variation",
+          "query_id": "q-law-4",
+          "relevant": [
+            "law-05"
+          ],
+          "top5": [
+            "law-05",
+            "law-01",
+            "arc-04",
+            "ait-02",
+            "fas-06"
+          ]
+        },
+        {
+          "area": "Fashion & Clothing",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "exact_concept",
+          "query_id": "q-fas-1",
+          "relevant": [
+            "fas-01"
+          ],
+          "top5": [
+            "fas-01",
+            "biz-02",
+            "fas-03",
+            "fas-02",
+            "fas-05"
+          ]
+        },
+        {
+          "area": "Fashion & Clothing",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "terminology_variation",
+          "query_id": "q-fas-2",
+          "relevant": [
+            "fas-06"
+          ],
+          "top5": [
+            "fas-06",
+            "arc-04",
+            "law-04",
+            "law-05",
+            "fas-02"
+          ]
+        },
+        {
+          "area": "Fashion & Clothing",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "cross_wording",
+          "query_id": "q-fas-3",
+          "relevant": [
+            "fas-03"
+          ],
+          "top5": [
+            "fas-03",
+            "fas-05",
+            "fas-02",
+            "fas-01",
+            "biz-02"
+          ]
+        },
+        {
+          "area": "Fashion & Clothing",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "paraphrase",
+          "query_id": "q-fas-4",
+          "relevant": [
+            "fas-02"
+          ],
+          "top5": [
+            "fas-02",
+            "fas-01",
+            "fas-03",
+            "fas-06",
+            "fas-05"
+          ]
+        },
+        {
+          "area": "Business & Opportunity Trends",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "exact_concept",
+          "query_id": "q-biz-1",
+          "relevant": [
+            "biz-01"
+          ],
+          "top5": [
+            "biz-01",
+            "biz-03",
+            "mkt-01",
+            "ait-01",
+            "biz-06"
+          ]
+        },
+        {
+          "area": "Business & Opportunity Trends",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "paraphrase",
+          "query_id": "q-biz-2",
+          "relevant": [
+            "biz-02"
+          ],
+          "top5": [
+            "biz-02",
+            "fas-05",
+            "mkt-02",
+            "fas-03",
+            "mkt-05"
+          ]
+        },
+        {
+          "area": "Business & Opportunity Trends",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "implicit_semantic",
+          "query_id": "q-biz-3",
+          "relevant": [
+            "biz-04"
+          ],
+          "top5": [
+            "biz-04",
+            "law-01",
+            "biz-03",
+            "biz-06",
+            "ait-01"
+          ]
+        },
+        {
+          "area": "Business & Opportunity Trends",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "cross_wording",
+          "query_id": "q-biz-4",
+          "relevant": [
+            "biz-06"
+          ],
+          "top5": [
+            "biz-06",
+            "biz-03",
+            "biz-01",
+            "biz-02",
+            "biz-04"
+          ]
+        }
+      ],
+      "dimension": 1024,
+      "error": "",
+      "model": "bge-m3",
+      "mrr": 0.9791666666666666,
+      "ndcg_at_10": 0.9831,
+      "per_area": {
+        "AI & Technology": {
+          "mrr": 0.875,
+          "ndcg@10": 0.9077,
+          "queries": 4.0,
+          "recall@1": 0.625,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "Architecture, Construction & Real Estate": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 4.0,
+          "recall@1": 1.0,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "Business & Opportunity Trends": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 4.0,
+          "recall@1": 1.0,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "Fashion & Clothing": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 4.0,
+          "recall@1": 1.0,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "Law & Regulation": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 4.0,
+          "recall@1": 1.0,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "Markets & Investment": {
+          "mrr": 1.0,
+          "ndcg@10": 0.991,
+          "queries": 4.0,
+          "recall@1": 0.875,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        }
+      },
+      "per_pattern": {
+        "cross_wording": {
+          "mrr": 1.0,
+          "ndcg@10": 0.991,
+          "queries": 4.0,
+          "recall@1": 0.875,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "exact_concept": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 6.0,
+          "recall@1": 1.0,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "implicit_semantic": {
+          "mrr": 0.8333,
+          "ndcg@10": 0.877,
+          "queries": 3.0,
+          "recall@1": 0.6667,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "paraphrase": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 6.0,
+          "recall@1": 0.9167,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "specific_fact": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 1.0,
+          "recall@1": 1.0,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "terminology_variation": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 4.0,
+          "recall@1": 1.0,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        }
+      },
+      "performance": {
+        "amortized_passage_latency_ms": 377.5,
+        "avg_query_latency_ms": 167.5,
+        "corpus_embed_seconds": 13.589,
+        "max_query_latency_ms": 247.9,
+        "model_load_seconds": 2.818,
+        "passages": 36
+      },
+      "recall_at_k": {
+        "1": 0.9167,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "sanity": {
+        "all_values_finite": true,
+        "dimension_consistent": true,
+        "long_input_dimension": 1024,
+        "query_vs_passage_cosine_on_same_text": 1.0,
+        "repeat_cosine_similarity": 1.0
+      },
+      "status": "OK"
+    },
+    {
+      "detail": [
+        {
+          "area": "AI & Technology",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "exact_concept",
+          "query_id": "q-ait-1",
+          "relevant": [
+            "ait-02"
+          ],
+          "top5": [
+            "ait-02",
+            "ait-06",
+            "law-01",
+            "law-06",
+            "ait-03"
+          ]
+        },
+        {
+          "area": "AI & Technology",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "paraphrase",
+          "query_id": "q-ait-2",
+          "relevant": [
+            "ait-01",
+            "ait-05"
+          ],
+          "top5": [
+            "ait-05",
+            "ait-01",
+            "ait-03",
+            "biz-04",
+            "law-01"
+          ]
+        },
+        {
+          "area": "AI & Technology",
+          "first_relevant_rank": 2,
+          "ndcg@10": 0.6309,
+          "pattern": "implicit_semantic",
+          "query_id": "q-ait-3",
+          "relevant": [
+            "ait-04"
+          ],
+          "top5": [
+            "ait-06",
+            "ait-04",
+            "mkt-01",
+            "ait-02",
+            "arc-03"
+          ]
+        },
+        {
+          "area": "AI & Technology",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "terminology_variation",
+          "query_id": "q-ait-4",
+          "relevant": [
+            "ait-03"
+          ],
+          "top5": [
+            "ait-03",
+            "ait-02",
+            "ait-01",
+            "ait-06",
+            "biz-03"
+          ]
+        },
+        {
+          "area": "Markets & Investment",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "exact_concept",
+          "query_id": "q-mkt-1",
+          "relevant": [
+            "mkt-01"
+          ],
+          "top5": [
+            "mkt-01",
+            "mkt-02",
+            "biz-06",
+            "mkt-04",
+            "mkt-05"
+          ]
+        },
+        {
+          "area": "Markets & Investment",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "paraphrase",
+          "query_id": "q-mkt-2",
+          "relevant": [
+            "mkt-02"
+          ],
+          "top5": [
+            "mkt-02",
+            "mkt-03",
+            "mkt-04",
+            "mkt-01",
+            "mkt-06"
+          ]
+        },
+        {
+          "area": "Markets & Investment",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "implicit_semantic",
+          "query_id": "q-mkt-3",
+          "relevant": [
+            "mkt-03"
+          ],
+          "top5": [
+            "mkt-03",
+            "biz-06",
+            "mkt-02",
+            "biz-02",
+            "mkt-01"
+          ]
+        },
+        {
+          "area": "Markets & Investment",
+          "first_relevant_rank": 1,
+          "ndcg@10": 0.9448,
+          "pattern": "cross_wording",
+          "query_id": "q-mkt-4",
+          "relevant": [
+            "ait-04",
+            "mkt-04"
+          ],
+          "top5": [
+            "mkt-04",
+            "mkt-01",
+            "biz-06",
+            "ait-04",
+            "mkt-03"
+          ]
+        },
+        {
+          "area": "Architecture, Construction & Real Estate",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "exact_concept",
+          "query_id": "q-arc-1",
+          "relevant": [
+            "arc-01"
+          ],
+          "top5": [
+            "arc-01",
+            "arc-02",
+            "arc-05",
+            "arc-04",
+            "biz-06"
+          ]
+        },
+        {
+          "area": "Architecture, Construction & Real Estate",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "paraphrase",
+          "query_id": "q-arc-2",
+          "relevant": [
+            "arc-02"
+          ],
+          "top5": [
+            "arc-02",
+            "biz-02",
+            "arc-05",
+            "arc-01",
+            "arc-06"
+          ]
+        },
+        {
+          "area": "Architecture, Construction & Real Estate",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "terminology_variation",
+          "query_id": "q-arc-3",
+          "relevant": [
+            "arc-04"
+          ],
+          "top5": [
+            "arc-04",
+            "arc-01",
+            "arc-02",
+            "arc-05",
+            "fas-06"
+          ]
+        },
+        {
+          "area": "Architecture, Construction & Real Estate",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "specific_fact",
+          "query_id": "q-arc-4",
+          "relevant": [
+            "arc-03"
+          ],
+          "top5": [
+            "arc-03",
+            "mkt-01",
+            "law-06",
+            "biz-04",
+            "biz-02"
+          ]
+        },
+        {
+          "area": "Law & Regulation",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "exact_concept",
+          "query_id": "q-law-1",
+          "relevant": [
+            "law-01"
+          ],
+          "top5": [
+            "law-01",
+            "ait-02",
+            "law-03",
+            "ait-06",
+            "ait-05"
+          ]
+        },
+        {
+          "area": "Law & Regulation",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "cross_wording",
+          "query_id": "q-law-2",
+          "relevant": [
+            "law-04"
+          ],
+          "top5": [
+            "law-04",
+            "law-06",
+            "fas-02",
+            "ait-03",
+            "mkt-05"
+          ]
+        },
+        {
+          "area": "Law & Regulation",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "paraphrase",
+          "query_id": "q-law-3",
+          "relevant": [
+            "law-06"
+          ],
+          "top5": [
+            "law-06",
+            "biz-03",
+            "law-03",
+            "ait-03",
+            "law-04"
+          ]
+        },
+        {
+          "area": "Law & Regulation",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "terminology_variation",
+          "query_id": "q-law-4",
+          "relevant": [
+            "law-05"
+          ],
+          "top5": [
+            "law-05",
+            "ait-02",
+            "law-01",
+            "arc-04",
+            "fas-06"
+          ]
+        },
+        {
+          "area": "Fashion & Clothing",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "exact_concept",
+          "query_id": "q-fas-1",
+          "relevant": [
+            "fas-01"
+          ],
+          "top5": [
+            "fas-01",
+            "fas-04",
+            "fas-03",
+            "fas-05",
+            "biz-02"
+          ]
+        },
+        {
+          "area": "Fashion & Clothing",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "terminology_variation",
+          "query_id": "q-fas-2",
+          "relevant": [
+            "fas-06"
+          ],
+          "top5": [
+            "fas-06",
+            "arc-04",
+            "fas-02",
+            "arc-06",
+            "law-05"
+          ]
+        },
+        {
+          "area": "Fashion & Clothing",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "cross_wording",
+          "query_id": "q-fas-3",
+          "relevant": [
+            "fas-03"
+          ],
+          "top5": [
+            "fas-03",
+            "fas-02",
+            "fas-05",
+            "fas-01",
+            "fas-06"
+          ]
+        },
+        {
+          "area": "Fashion & Clothing",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "paraphrase",
+          "query_id": "q-fas-4",
+          "relevant": [
+            "fas-02"
+          ],
+          "top5": [
+            "fas-02",
+            "fas-06",
+            "fas-01",
+            "fas-03",
+            "fas-05"
+          ]
+        },
+        {
+          "area": "Business & Opportunity Trends",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "exact_concept",
+          "query_id": "q-biz-1",
+          "relevant": [
+            "biz-01"
+          ],
+          "top5": [
+            "biz-01",
+            "biz-03",
+            "biz-06",
+            "ait-02",
+            "ait-01"
+          ]
+        },
+        {
+          "area": "Business & Opportunity Trends",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "paraphrase",
+          "query_id": "q-biz-2",
+          "relevant": [
+            "biz-02"
+          ],
+          "top5": [
+            "biz-02",
+            "fas-05",
+            "mkt-05",
+            "arc-03",
+            "mkt-01"
+          ]
+        },
+        {
+          "area": "Business & Opportunity Trends",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "implicit_semantic",
+          "query_id": "q-biz-3",
+          "relevant": [
+            "biz-04"
+          ],
+          "top5": [
+            "biz-04",
+            "ait-01",
+            "biz-03",
+            "biz-06",
+            "biz-01"
+          ]
+        },
+        {
+          "area": "Business & Opportunity Trends",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "cross_wording",
+          "query_id": "q-biz-4",
+          "relevant": [
+            "biz-06"
+          ],
+          "top5": [
+            "biz-06",
+            "biz-03",
+            "biz-01",
+            "biz-02",
+            "law-03"
+          ]
+        }
+      ],
+      "dimension": 768,
+      "error": "",
+      "model": "nomic-embed-text",
+      "mrr": 0.9791666666666666,
+      "ndcg_at_10": 0.9823,
+      "per_area": {
+        "AI & Technology": {
+          "mrr": 0.875,
+          "ndcg@10": 0.9077,
+          "queries": 4.0,
+          "recall@1": 0.625,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "Architecture, Construction & Real Estate": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 4.0,
+          "recall@1": 1.0,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "Business & Opportunity Trends": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 4.0,
+          "recall@1": 1.0,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "Fashion & Clothing": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 4.0,
+          "recall@1": 1.0,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "Law & Regulation": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 4.0,
+          "recall@1": 1.0,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "Markets & Investment": {
+          "mrr": 1.0,
+          "ndcg@10": 0.9862,
+          "queries": 4.0,
+          "recall@1": 0.875,
+          "recall@10": 1.0,
+          "recall@3": 0.875,
+          "recall@5": 1.0
+        }
+      },
+      "per_pattern": {
+        "cross_wording": {
+          "mrr": 1.0,
+          "ndcg@10": 0.9862,
+          "queries": 4.0,
+          "recall@1": 0.875,
+          "recall@10": 1.0,
+          "recall@3": 0.875,
+          "recall@5": 1.0
+        },
+        "exact_concept": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 6.0,
+          "recall@1": 1.0,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "implicit_semantic": {
+          "mrr": 0.8333,
+          "ndcg@10": 0.877,
+          "queries": 3.0,
+          "recall@1": 0.6667,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "paraphrase": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 6.0,
+          "recall@1": 0.9167,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "specific_fact": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 1.0,
+          "recall@1": 1.0,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "terminology_variation": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 4.0,
+          "recall@1": 1.0,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        }
+      },
+      "performance": {
+        "amortized_passage_latency_ms": 130.8,
+        "avg_query_latency_ms": 75.7,
+        "corpus_embed_seconds": 4.709,
+        "max_query_latency_ms": 100.1,
+        "model_load_seconds": 1.103,
+        "passages": 36
+      },
+      "recall_at_k": {
+        "1": 0.9167,
+        "3": 0.9792,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "sanity": {
+        "all_values_finite": true,
+        "dimension_consistent": true,
+        "long_input_dimension": 768,
+        "query_vs_passage_cosine_on_same_text": 0.934182,
+        "repeat_cosine_similarity": 1.0
+      },
+      "status": "OK"
+    },
+    {
+      "detail": [
+        {
+          "area": "AI & Technology",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "exact_concept",
+          "query_id": "q-ait-1",
+          "relevant": [
+            "ait-02"
+          ],
+          "top5": [
+            "ait-02",
+            "ait-06",
+            "law-01",
+            "law-02",
+            "law-06"
+          ]
+        },
+        {
+          "area": "AI & Technology",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "paraphrase",
+          "query_id": "q-ait-2",
+          "relevant": [
+            "ait-01",
+            "ait-05"
+          ],
+          "top5": [
+            "ait-05",
+            "ait-01",
+            "biz-01",
+            "ait-03",
+            "ait-02"
+          ]
+        },
+        {
+          "area": "AI & Technology",
+          "first_relevant_rank": 2,
+          "ndcg@10": 0.6309,
+          "pattern": "implicit_semantic",
+          "query_id": "q-ait-3",
+          "relevant": [
+            "ait-04"
+          ],
+          "top5": [
+            "ait-06",
+            "ait-04",
+            "ait-02",
+            "arc-05",
+            "arc-03"
+          ]
+        },
+        {
+          "area": "AI & Technology",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "terminology_variation",
+          "query_id": "q-ait-4",
+          "relevant": [
+            "ait-03"
+          ],
+          "top5": [
+            "ait-03",
+            "ait-02",
+            "ait-06",
+            "biz-03",
+            "ait-01"
+          ]
+        },
+        {
+          "area": "Markets & Investment",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "exact_concept",
+          "query_id": "q-mkt-1",
+          "relevant": [
+            "mkt-01"
+          ],
+          "top5": [
+            "mkt-01",
+            "mkt-04",
+            "ait-06",
+            "biz-02",
+            "mkt-03"
+          ]
+        },
+        {
+          "area": "Markets & Investment",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "paraphrase",
+          "query_id": "q-mkt-2",
+          "relevant": [
+            "mkt-02"
+          ],
+          "top5": [
+            "mkt-02",
+            "mkt-03",
+            "mkt-04",
+            "arc-06",
+            "mkt-06"
+          ]
+        },
+        {
+          "area": "Markets & Investment",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "implicit_semantic",
+          "query_id": "q-mkt-3",
+          "relevant": [
+            "mkt-03"
+          ],
+          "top5": [
+            "mkt-03",
+            "mkt-02",
+            "biz-06",
+            "arc-06",
+            "mkt-06"
+          ]
+        },
+        {
+          "area": "Markets & Investment",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "cross_wording",
+          "query_id": "q-mkt-4",
+          "relevant": [
+            "ait-04",
+            "mkt-04"
+          ],
+          "top5": [
+            "mkt-04",
+            "ait-04",
+            "mkt-01",
+            "biz-02",
+            "mkt-03"
+          ]
+        },
+        {
+          "area": "Architecture, Construction & Real Estate",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "exact_concept",
+          "query_id": "q-arc-1",
+          "relevant": [
+            "arc-01"
+          ],
+          "top5": [
+            "arc-01",
+            "arc-02",
+            "arc-04",
+            "arc-05",
+            "biz-02"
+          ]
+        },
+        {
+          "area": "Architecture, Construction & Real Estate",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "paraphrase",
+          "query_id": "q-arc-2",
+          "relevant": [
+            "arc-02"
+          ],
+          "top5": [
+            "arc-02",
+            "arc-01",
+            "arc-04",
+            "arc-05",
+            "biz-02"
+          ]
+        },
+        {
+          "area": "Architecture, Construction & Real Estate",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "terminology_variation",
+          "query_id": "q-arc-3",
+          "relevant": [
+            "arc-04"
+          ],
+          "top5": [
+            "arc-04",
+            "arc-01",
+            "law-05",
+            "arc-02",
+            "fas-06"
+          ]
+        },
+        {
+          "area": "Architecture, Construction & Real Estate",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "specific_fact",
+          "query_id": "q-arc-4",
+          "relevant": [
+            "arc-03"
+          ],
+          "top5": [
+            "arc-03",
+            "ait-04",
+            "arc-05",
+            "arc-01",
+            "arc-04"
+          ]
+        },
+        {
+          "area": "Law & Regulation",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "exact_concept",
+          "query_id": "q-law-1",
+          "relevant": [
+            "law-01"
+          ],
+          "top5": [
+            "law-01",
+            "ait-02",
+            "biz-01",
+            "law-03",
+            "ait-06"
+          ]
+        },
+        {
+          "area": "Law & Regulation",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "cross_wording",
+          "query_id": "q-law-2",
+          "relevant": [
+            "law-04"
+          ],
+          "top5": [
+            "law-04",
+            "fas-02",
+            "fas-05",
+            "ait-03",
+            "fas-04"
+          ]
+        },
+        {
+          "area": "Law & Regulation",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "paraphrase",
+          "query_id": "q-law-3",
+          "relevant": [
+            "law-06"
+          ],
+          "top5": [
+            "law-06",
+            "law-01",
+            "arc-03",
+            "law-04",
+            "biz-05"
+          ]
+        },
+        {
+          "area": "Law & Regulation",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "terminology_variation",
+          "query_id": "q-law-4",
+          "relevant": [
+            "law-05"
+          ],
+          "top5": [
+            "law-05",
+            "law-01",
+            "arc-04",
+            "ait-02",
+            "law-02"
+          ]
+        },
+        {
+          "area": "Fashion & Clothing",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "exact_concept",
+          "query_id": "q-fas-1",
+          "relevant": [
+            "fas-01"
+          ],
+          "top5": [
+            "fas-01",
+            "fas-03",
+            "fas-05",
+            "fas-04",
+            "biz-02"
+          ]
+        },
+        {
+          "area": "Fashion & Clothing",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "terminology_variation",
+          "query_id": "q-fas-2",
+          "relevant": [
+            "fas-06"
+          ],
+          "top5": [
+            "fas-06",
+            "fas-02",
+            "arc-04",
+            "law-01",
+            "law-04"
+          ]
+        },
+        {
+          "area": "Fashion & Clothing",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "cross_wording",
+          "query_id": "q-fas-3",
+          "relevant": [
+            "fas-03"
+          ],
+          "top5": [
+            "fas-03",
+            "fas-05",
+            "fas-02",
+            "fas-01",
+            "fas-06"
+          ]
+        },
+        {
+          "area": "Fashion & Clothing",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "paraphrase",
+          "query_id": "q-fas-4",
+          "relevant": [
+            "fas-02"
+          ],
+          "top5": [
+            "fas-02",
+            "fas-06",
+            "fas-05",
+            "fas-03",
+            "fas-01"
+          ]
+        },
+        {
+          "area": "Business & Opportunity Trends",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "exact_concept",
+          "query_id": "q-biz-1",
+          "relevant": [
+            "biz-01"
+          ],
+          "top5": [
+            "biz-01",
+            "ait-02",
+            "biz-03",
+            "ait-01",
+            "ait-05"
+          ]
+        },
+        {
+          "area": "Business & Opportunity Trends",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "paraphrase",
+          "query_id": "q-biz-2",
+          "relevant": [
+            "biz-02"
+          ],
+          "top5": [
+            "biz-02",
+            "arc-05",
+            "fas-05",
+            "mkt-01",
+            "arc-03"
+          ]
+        },
+        {
+          "area": "Business & Opportunity Trends",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "implicit_semantic",
+          "query_id": "q-biz-3",
+          "relevant": [
+            "biz-04"
+          ],
+          "top5": [
+            "biz-04",
+            "law-03",
+            "biz-03",
+            "biz-06",
+            "ait-03"
+          ]
+        },
+        {
+          "area": "Business & Opportunity Trends",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "cross_wording",
+          "query_id": "q-biz-4",
+          "relevant": [
+            "biz-06"
+          ],
+          "top5": [
+            "biz-06",
+            "biz-03",
+            "biz-01",
+            "biz-04",
+            "mkt-03"
+          ]
+        }
+      ],
+      "dimension": 1024,
+      "error": "",
+      "model": "mxbai-embed-large",
+      "mrr": 0.9791666666666666,
+      "ndcg_at_10": 0.9846,
+      "per_area": {
+        "AI & Technology": {
+          "mrr": 0.875,
+          "ndcg@10": 0.9077,
+          "queries": 4.0,
+          "recall@1": 0.625,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "Architecture, Construction & Real Estate": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 4.0,
+          "recall@1": 1.0,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "Business & Opportunity Trends": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 4.0,
+          "recall@1": 1.0,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "Fashion & Clothing": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 4.0,
+          "recall@1": 1.0,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "Law & Regulation": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 4.0,
+          "recall@1": 1.0,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "Markets & Investment": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 4.0,
+          "recall@1": 0.875,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        }
+      },
+      "per_pattern": {
+        "cross_wording": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 4.0,
+          "recall@1": 0.875,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "exact_concept": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 6.0,
+          "recall@1": 1.0,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "implicit_semantic": {
+          "mrr": 0.8333,
+          "ndcg@10": 0.877,
+          "queries": 3.0,
+          "recall@1": 0.6667,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "paraphrase": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 6.0,
+          "recall@1": 0.9167,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "specific_fact": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 1.0,
+          "recall@1": 1.0,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "terminology_variation": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 4.0,
+          "recall@1": 1.0,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        }
+      },
+      "performance": {
+        "amortized_passage_latency_ms": 329.2,
+        "avg_query_latency_ms": 160.0,
+        "corpus_embed_seconds": 11.851,
+        "max_query_latency_ms": 246.6,
+        "model_load_seconds": 1.627,
+        "passages": 36
+      },
+      "recall_at_k": {
+        "1": 0.9167,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "sanity": {
+        "all_values_finite": true,
+        "dimension_consistent": true,
+        "long_input_dimension": 1024,
+        "query_vs_passage_cosine_on_same_text": 0.930897,
+        "repeat_cosine_similarity": 1.0
+      },
+      "status": "OK"
+    },
+    {
+      "detail": [
+        {
+          "area": "AI & Technology",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "exact_concept",
+          "query_id": "q-ait-1",
+          "relevant": [
+            "ait-02"
+          ],
+          "top5": [
+            "ait-02",
+            "ait-06",
+            "law-01",
+            "ait-03",
+            "law-02"
+          ]
+        },
+        {
+          "area": "AI & Technology",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "paraphrase",
+          "query_id": "q-ait-2",
+          "relevant": [
+            "ait-01",
+            "ait-05"
+          ],
+          "top5": [
+            "ait-05",
+            "ait-01",
+            "ait-03",
+            "ait-02",
+            "biz-01"
+          ]
+        },
+        {
+          "area": "AI & Technology",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "implicit_semantic",
+          "query_id": "q-ait-3",
+          "relevant": [
+            "ait-04"
+          ],
+          "top5": [
+            "ait-04",
+            "ait-06",
+            "mkt-01",
+            "ait-02",
+            "mkt-04"
+          ]
+        },
+        {
+          "area": "AI & Technology",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "terminology_variation",
+          "query_id": "q-ait-4",
+          "relevant": [
+            "ait-03"
+          ],
+          "top5": [
+            "ait-03",
+            "ait-02",
+            "ait-06",
+            "biz-03",
+            "ait-01"
+          ]
+        },
+        {
+          "area": "Markets & Investment",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "exact_concept",
+          "query_id": "q-mkt-1",
+          "relevant": [
+            "mkt-01"
+          ],
+          "top5": [
+            "mkt-01",
+            "mkt-04",
+            "mkt-02",
+            "mkt-03",
+            "ait-04"
+          ]
+        },
+        {
+          "area": "Markets & Investment",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "paraphrase",
+          "query_id": "q-mkt-2",
+          "relevant": [
+            "mkt-02"
+          ],
+          "top5": [
+            "mkt-02",
+            "mkt-03",
+            "mkt-04",
+            "biz-02",
+            "mkt-01"
+          ]
+        },
+        {
+          "area": "Markets & Investment",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "implicit_semantic",
+          "query_id": "q-mkt-3",
+          "relevant": [
+            "mkt-03"
+          ],
+          "top5": [
+            "mkt-03",
+            "mkt-02",
+            "biz-06",
+            "biz-02",
+            "mkt-01"
+          ]
+        },
+        {
+          "area": "Markets & Investment",
+          "first_relevant_rank": 1,
+          "ndcg@10": 0.9639,
+          "pattern": "cross_wording",
+          "query_id": "q-mkt-4",
+          "relevant": [
+            "ait-04",
+            "mkt-04"
+          ],
+          "top5": [
+            "mkt-04",
+            "mkt-01",
+            "ait-04",
+            "mkt-02",
+            "mkt-03"
+          ]
+        },
+        {
+          "area": "Architecture, Construction & Real Estate",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "exact_concept",
+          "query_id": "q-arc-1",
+          "relevant": [
+            "arc-01"
+          ],
+          "top5": [
+            "arc-01",
+            "arc-02",
+            "arc-04",
+            "arc-05",
+            "arc-03"
+          ]
+        },
+        {
+          "area": "Architecture, Construction & Real Estate",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "paraphrase",
+          "query_id": "q-arc-2",
+          "relevant": [
+            "arc-02"
+          ],
+          "top5": [
+            "arc-02",
+            "arc-01",
+            "arc-06",
+            "biz-02",
+            "arc-04"
+          ]
+        },
+        {
+          "area": "Architecture, Construction & Real Estate",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "terminology_variation",
+          "query_id": "q-arc-3",
+          "relevant": [
+            "arc-04"
+          ],
+          "top5": [
+            "arc-04",
+            "arc-01",
+            "law-05",
+            "fas-06",
+            "fas-02"
+          ]
+        },
+        {
+          "area": "Architecture, Construction & Real Estate",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "specific_fact",
+          "query_id": "q-arc-4",
+          "relevant": [
+            "arc-03"
+          ],
+          "top5": [
+            "arc-03",
+            "biz-05",
+            "ait-04",
+            "arc-05",
+            "arc-01"
+          ]
+        },
+        {
+          "area": "Law & Regulation",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "exact_concept",
+          "query_id": "q-law-1",
+          "relevant": [
+            "law-01"
+          ],
+          "top5": [
+            "law-01",
+            "ait-02",
+            "ait-06",
+            "biz-01",
+            "law-06"
+          ]
+        },
+        {
+          "area": "Law & Regulation",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "cross_wording",
+          "query_id": "q-law-2",
+          "relevant": [
+            "law-04"
+          ],
+          "top5": [
+            "law-04",
+            "biz-01",
+            "biz-02",
+            "fas-02",
+            "law-06"
+          ]
+        },
+        {
+          "area": "Law & Regulation",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "paraphrase",
+          "query_id": "q-law-3",
+          "relevant": [
+            "law-06"
+          ],
+          "top5": [
+            "law-06",
+            "law-03",
+            "law-01",
+            "ait-06",
+            "biz-03"
+          ]
+        },
+        {
+          "area": "Law & Regulation",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "terminology_variation",
+          "query_id": "q-law-4",
+          "relevant": [
+            "law-05"
+          ],
+          "top5": [
+            "law-05",
+            "arc-04",
+            "law-01",
+            "ait-02",
+            "fas-02"
+          ]
+        },
+        {
+          "area": "Fashion & Clothing",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "exact_concept",
+          "query_id": "q-fas-1",
+          "relevant": [
+            "fas-01"
+          ],
+          "top5": [
+            "fas-01",
+            "fas-03",
+            "fas-04",
+            "biz-02",
+            "fas-05"
+          ]
+        },
+        {
+          "area": "Fashion & Clothing",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "terminology_variation",
+          "query_id": "q-fas-2",
+          "relevant": [
+            "fas-06"
+          ],
+          "top5": [
+            "fas-06",
+            "arc-04",
+            "fas-02",
+            "law-04",
+            "fas-04"
+          ]
+        },
+        {
+          "area": "Fashion & Clothing",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "cross_wording",
+          "query_id": "q-fas-3",
+          "relevant": [
+            "fas-03"
+          ],
+          "top5": [
+            "fas-03",
+            "fas-02",
+            "fas-05",
+            "fas-01",
+            "fas-04"
+          ]
+        },
+        {
+          "area": "Fashion & Clothing",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "paraphrase",
+          "query_id": "q-fas-4",
+          "relevant": [
+            "fas-02"
+          ],
+          "top5": [
+            "fas-02",
+            "fas-03",
+            "fas-05",
+            "fas-06",
+            "fas-01"
+          ]
+        },
+        {
+          "area": "Business & Opportunity Trends",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "exact_concept",
+          "query_id": "q-biz-1",
+          "relevant": [
+            "biz-01"
+          ],
+          "top5": [
+            "biz-01",
+            "ait-01",
+            "biz-03",
+            "mkt-01",
+            "ait-06"
+          ]
+        },
+        {
+          "area": "Business & Opportunity Trends",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "paraphrase",
+          "query_id": "q-biz-2",
+          "relevant": [
+            "biz-02"
+          ],
+          "top5": [
+            "biz-02",
+            "fas-05",
+            "fas-03",
+            "arc-05",
+            "mkt-05"
+          ]
+        },
+        {
+          "area": "Business & Opportunity Trends",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "implicit_semantic",
+          "query_id": "q-biz-3",
+          "relevant": [
+            "biz-04"
+          ],
+          "top5": [
+            "biz-04",
+            "biz-03",
+            "ait-03",
+            "biz-06",
+            "law-01"
+          ]
+        },
+        {
+          "area": "Business & Opportunity Trends",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "cross_wording",
+          "query_id": "q-biz-4",
+          "relevant": [
+            "biz-06"
+          ],
+          "top5": [
+            "biz-06",
+            "biz-03",
+            "mkt-03",
+            "biz-04",
+            "biz-01"
+          ]
+        }
+      ],
+      "dimension": 1024,
+      "error": "",
+      "model": "snowflake-arctic-embed2",
+      "mrr": 1.0,
+      "ndcg_at_10": 0.9985,
+      "per_area": {
+        "AI & Technology": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 4.0,
+          "recall@1": 0.875,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "Architecture, Construction & Real Estate": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 4.0,
+          "recall@1": 1.0,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "Business & Opportunity Trends": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 4.0,
+          "recall@1": 1.0,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "Fashion & Clothing": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 4.0,
+          "recall@1": 1.0,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "Law & Regulation": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 4.0,
+          "recall@1": 1.0,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "Markets & Investment": {
+          "mrr": 1.0,
+          "ndcg@10": 0.991,
+          "queries": 4.0,
+          "recall@1": 0.875,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        }
+      },
+      "per_pattern": {
+        "cross_wording": {
+          "mrr": 1.0,
+          "ndcg@10": 0.991,
+          "queries": 4.0,
+          "recall@1": 0.875,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "exact_concept": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 6.0,
+          "recall@1": 1.0,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "implicit_semantic": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 3.0,
+          "recall@1": 1.0,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "paraphrase": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 6.0,
+          "recall@1": 0.9167,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "specific_fact": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 1.0,
+          "recall@1": 1.0,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "terminology_variation": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 4.0,
+          "recall@1": 1.0,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        }
+      },
+      "performance": {
+        "amortized_passage_latency_ms": 423.9,
+        "avg_query_latency_ms": 195.0,
+        "corpus_embed_seconds": 15.261,
+        "max_query_latency_ms": 255.9,
+        "model_load_seconds": 3.856,
+        "passages": 36
+      },
+      "recall_at_k": {
+        "1": 0.9583,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "sanity": {
+        "all_values_finite": true,
+        "dimension_consistent": true,
+        "long_input_dimension": 1024,
+        "query_vs_passage_cosine_on_same_text": 0.880004,
+        "repeat_cosine_similarity": 1.0
+      },
+      "status": "OK"
+    },
+    {
+      "detail": [
+        {
+          "area": "AI & Technology",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "exact_concept",
+          "query_id": "q-ait-1",
+          "relevant": [
+            "ait-02"
+          ],
+          "top5": [
+            "ait-02",
+            "ait-06",
+            "law-01",
+            "law-02",
+            "law-04"
+          ]
+        },
+        {
+          "area": "AI & Technology",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "paraphrase",
+          "query_id": "q-ait-2",
+          "relevant": [
+            "ait-01",
+            "ait-05"
+          ],
+          "top5": [
+            "ait-05",
+            "ait-01",
+            "biz-01",
+            "ait-03",
+            "biz-05"
+          ]
+        },
+        {
+          "area": "AI & Technology",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "implicit_semantic",
+          "query_id": "q-ait-3",
+          "relevant": [
+            "ait-04"
+          ],
+          "top5": [
+            "ait-04",
+            "ait-06",
+            "mkt-01",
+            "ait-02",
+            "arc-03"
+          ]
+        },
+        {
+          "area": "AI & Technology",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "terminology_variation",
+          "query_id": "q-ait-4",
+          "relevant": [
+            "ait-03"
+          ],
+          "top5": [
+            "ait-03",
+            "ait-02",
+            "law-03",
+            "biz-04",
+            "ait-06"
+          ]
+        },
+        {
+          "area": "Markets & Investment",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "exact_concept",
+          "query_id": "q-mkt-1",
+          "relevant": [
+            "mkt-01"
+          ],
+          "top5": [
+            "mkt-01",
+            "mkt-04",
+            "mkt-03",
+            "ait-06",
+            "biz-03"
+          ]
+        },
+        {
+          "area": "Markets & Investment",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "paraphrase",
+          "query_id": "q-mkt-2",
+          "relevant": [
+            "mkt-02"
+          ],
+          "top5": [
+            "mkt-02",
+            "mkt-03",
+            "mkt-04",
+            "mkt-06",
+            "arc-02"
+          ]
+        },
+        {
+          "area": "Markets & Investment",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "implicit_semantic",
+          "query_id": "q-mkt-3",
+          "relevant": [
+            "mkt-03"
+          ],
+          "top5": [
+            "mkt-03",
+            "biz-06",
+            "mkt-02",
+            "arc-06",
+            "arc-02"
+          ]
+        },
+        {
+          "area": "Markets & Investment",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "cross_wording",
+          "query_id": "q-mkt-4",
+          "relevant": [
+            "ait-04",
+            "mkt-04"
+          ],
+          "top5": [
+            "mkt-04",
+            "ait-04",
+            "mkt-02",
+            "mkt-01",
+            "biz-06"
+          ]
+        },
+        {
+          "area": "Architecture, Construction & Real Estate",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "exact_concept",
+          "query_id": "q-arc-1",
+          "relevant": [
+            "arc-01"
+          ],
+          "top5": [
+            "arc-01",
+            "arc-02",
+            "arc-04",
+            "biz-02",
+            "arc-05"
+          ]
+        },
+        {
+          "area": "Architecture, Construction & Real Estate",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "paraphrase",
+          "query_id": "q-arc-2",
+          "relevant": [
+            "arc-02"
+          ],
+          "top5": [
+            "arc-02",
+            "arc-01",
+            "arc-04",
+            "biz-05",
+            "biz-06"
+          ]
+        },
+        {
+          "area": "Architecture, Construction & Real Estate",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "terminology_variation",
+          "query_id": "q-arc-3",
+          "relevant": [
+            "arc-04"
+          ],
+          "top5": [
+            "arc-04",
+            "arc-01",
+            "law-05",
+            "fas-02",
+            "fas-06"
+          ]
+        },
+        {
+          "area": "Architecture, Construction & Real Estate",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "specific_fact",
+          "query_id": "q-arc-4",
+          "relevant": [
+            "arc-03"
+          ],
+          "top5": [
+            "arc-03",
+            "arc-05",
+            "ait-04",
+            "arc-04",
+            "biz-02"
+          ]
+        },
+        {
+          "area": "Law & Regulation",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "exact_concept",
+          "query_id": "q-law-1",
+          "relevant": [
+            "law-01"
+          ],
+          "top5": [
+            "law-01",
+            "ait-06",
+            "ait-02",
+            "law-02",
+            "ait-05"
+          ]
+        },
+        {
+          "area": "Law & Regulation",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "cross_wording",
+          "query_id": "q-law-2",
+          "relevant": [
+            "law-04"
+          ],
+          "top5": [
+            "law-04",
+            "fas-04",
+            "biz-01",
+            "fas-03",
+            "fas-02"
+          ]
+        },
+        {
+          "area": "Law & Regulation",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "paraphrase",
+          "query_id": "q-law-3",
+          "relevant": [
+            "law-06"
+          ],
+          "top5": [
+            "law-06",
+            "law-03",
+            "law-01",
+            "biz-05",
+            "biz-01"
+          ]
+        },
+        {
+          "area": "Law & Regulation",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "terminology_variation",
+          "query_id": "q-law-4",
+          "relevant": [
+            "law-05"
+          ],
+          "top5": [
+            "law-05",
+            "arc-04",
+            "law-01",
+            "ait-02",
+            "fas-06"
+          ]
+        },
+        {
+          "area": "Fashion & Clothing",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "exact_concept",
+          "query_id": "q-fas-1",
+          "relevant": [
+            "fas-01"
+          ],
+          "top5": [
+            "fas-01",
+            "fas-03",
+            "fas-04",
+            "fas-05",
+            "fas-02"
+          ]
+        },
+        {
+          "area": "Fashion & Clothing",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "terminology_variation",
+          "query_id": "q-fas-2",
+          "relevant": [
+            "fas-06"
+          ],
+          "top5": [
+            "fas-06",
+            "fas-02",
+            "fas-03",
+            "arc-04",
+            "law-04"
+          ]
+        },
+        {
+          "area": "Fashion & Clothing",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "cross_wording",
+          "query_id": "q-fas-3",
+          "relevant": [
+            "fas-03"
+          ],
+          "top5": [
+            "fas-03",
+            "fas-01",
+            "fas-05",
+            "fas-02",
+            "fas-04"
+          ]
+        },
+        {
+          "area": "Fashion & Clothing",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "paraphrase",
+          "query_id": "q-fas-4",
+          "relevant": [
+            "fas-02"
+          ],
+          "top5": [
+            "fas-02",
+            "fas-03",
+            "fas-06",
+            "fas-05",
+            "fas-01"
+          ]
+        },
+        {
+          "area": "Business & Opportunity Trends",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "exact_concept",
+          "query_id": "q-biz-1",
+          "relevant": [
+            "biz-01"
+          ],
+          "top5": [
+            "biz-01",
+            "biz-03",
+            "ait-01",
+            "ait-05",
+            "biz-04"
+          ]
+        },
+        {
+          "area": "Business & Opportunity Trends",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "paraphrase",
+          "query_id": "q-biz-2",
+          "relevant": [
+            "biz-02"
+          ],
+          "top5": [
+            "biz-02",
+            "fas-05",
+            "biz-06",
+            "fas-03",
+            "biz-03"
+          ]
+        },
+        {
+          "area": "Business & Opportunity Trends",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "implicit_semantic",
+          "query_id": "q-biz-3",
+          "relevant": [
+            "biz-04"
+          ],
+          "top5": [
+            "biz-04",
+            "biz-03",
+            "ait-03",
+            "biz-06",
+            "arc-05"
+          ]
+        },
+        {
+          "area": "Business & Opportunity Trends",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "cross_wording",
+          "query_id": "q-biz-4",
+          "relevant": [
+            "biz-06"
+          ],
+          "top5": [
+            "biz-06",
+            "biz-03",
+            "biz-04",
+            "biz-01",
+            "law-03"
+          ]
+        }
+      ],
+      "dimension": 768,
+      "error": "",
+      "model": "embeddinggemma",
+      "mrr": 1.0,
+      "ndcg_at_10": 1.0,
+      "per_area": {
+        "AI & Technology": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 4.0,
+          "recall@1": 0.875,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "Architecture, Construction & Real Estate": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 4.0,
+          "recall@1": 1.0,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "Business & Opportunity Trends": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 4.0,
+          "recall@1": 1.0,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "Fashion & Clothing": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 4.0,
+          "recall@1": 1.0,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "Law & Regulation": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 4.0,
+          "recall@1": 1.0,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "Markets & Investment": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 4.0,
+          "recall@1": 0.875,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        }
+      },
+      "per_pattern": {
+        "cross_wording": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 4.0,
+          "recall@1": 0.875,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "exact_concept": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 6.0,
+          "recall@1": 1.0,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "implicit_semantic": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 3.0,
+          "recall@1": 1.0,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "paraphrase": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 6.0,
+          "recall@1": 0.9167,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "specific_fact": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 1.0,
+          "recall@1": 1.0,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "terminology_variation": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 4.0,
+          "recall@1": 1.0,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        }
+      },
+      "performance": {
+        "amortized_passage_latency_ms": 147.9,
+        "avg_query_latency_ms": 123.0,
+        "corpus_embed_seconds": 5.324,
+        "max_query_latency_ms": 179.5,
+        "model_load_seconds": 2.824,
+        "passages": 36
+      },
+      "recall_at_k": {
+        "1": 0.9583,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "sanity": {
+        "all_values_finite": true,
+        "dimension_consistent": true,
+        "long_input_dimension": 768,
+        "query_vs_passage_cosine_on_same_text": 0.857705,
+        "repeat_cosine_similarity": 1.0
+      },
+      "status": "OK"
+    },
+    {
+      "detail": [
+        {
+          "area": "AI & Technology",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "exact_concept",
+          "query_id": "q-ait-1",
+          "relevant": [
+            "ait-02"
+          ],
+          "top5": [
+            "ait-02",
+            "law-01",
+            "ait-06",
+            "law-03",
+            "law-04"
+          ]
+        },
+        {
+          "area": "AI & Technology",
+          "first_relevant_rank": 1,
+          "ndcg@10": 0.9328,
+          "pattern": "paraphrase",
+          "query_id": "q-ait-2",
+          "relevant": [
+            "ait-01",
+            "ait-05"
+          ],
+          "top5": [
+            "ait-05",
+            "ait-03",
+            "biz-05",
+            "biz-01",
+            "ait-01"
+          ]
+        },
+        {
+          "area": "AI & Technology",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "implicit_semantic",
+          "query_id": "q-ait-3",
+          "relevant": [
+            "ait-04"
+          ],
+          "top5": [
+            "ait-04",
+            "ait-06",
+            "arc-03",
+            "mkt-01",
+            "ait-02"
+          ]
+        },
+        {
+          "area": "AI & Technology",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "terminology_variation",
+          "query_id": "q-ait-4",
+          "relevant": [
+            "ait-03"
+          ],
+          "top5": [
+            "ait-03",
+            "ait-02",
+            "biz-03",
+            "arc-04",
+            "ait-01"
+          ]
+        },
+        {
+          "area": "Markets & Investment",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "exact_concept",
+          "query_id": "q-mkt-1",
+          "relevant": [
+            "mkt-01"
+          ],
+          "top5": [
+            "mkt-01",
+            "mkt-04",
+            "mkt-05",
+            "mkt-02",
+            "mkt-06"
+          ]
+        },
+        {
+          "area": "Markets & Investment",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "paraphrase",
+          "query_id": "q-mkt-2",
+          "relevant": [
+            "mkt-02"
+          ],
+          "top5": [
+            "mkt-02",
+            "mkt-03",
+            "mkt-04",
+            "mkt-01",
+            "mkt-05"
+          ]
+        },
+        {
+          "area": "Markets & Investment",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "implicit_semantic",
+          "query_id": "q-mkt-3",
+          "relevant": [
+            "mkt-03"
+          ],
+          "top5": [
+            "mkt-03",
+            "mkt-02",
+            "biz-06",
+            "biz-04",
+            "biz-02"
+          ]
+        },
+        {
+          "area": "Markets & Investment",
+          "first_relevant_rank": 1,
+          "ndcg@10": 0.9639,
+          "pattern": "cross_wording",
+          "query_id": "q-mkt-4",
+          "relevant": [
+            "ait-04",
+            "mkt-04"
+          ],
+          "top5": [
+            "mkt-04",
+            "arc-02",
+            "ait-04",
+            "mkt-01",
+            "mkt-02"
+          ]
+        },
+        {
+          "area": "Architecture, Construction & Real Estate",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "exact_concept",
+          "query_id": "q-arc-1",
+          "relevant": [
+            "arc-01"
+          ],
+          "top5": [
+            "arc-01",
+            "arc-05",
+            "arc-04",
+            "arc-02",
+            "mkt-01"
+          ]
+        },
+        {
+          "area": "Architecture, Construction & Real Estate",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "paraphrase",
+          "query_id": "q-arc-2",
+          "relevant": [
+            "arc-02"
+          ],
+          "top5": [
+            "arc-02",
+            "arc-01",
+            "arc-05",
+            "mkt-04",
+            "arc-04"
+          ]
+        },
+        {
+          "area": "Architecture, Construction & Real Estate",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "terminology_variation",
+          "query_id": "q-arc-3",
+          "relevant": [
+            "arc-04"
+          ],
+          "top5": [
+            "arc-04",
+            "arc-05",
+            "arc-01",
+            "fas-06",
+            "fas-03"
+          ]
+        },
+        {
+          "area": "Architecture, Construction & Real Estate",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "specific_fact",
+          "query_id": "q-arc-4",
+          "relevant": [
+            "arc-03"
+          ],
+          "top5": [
+            "arc-03",
+            "arc-01",
+            "arc-05",
+            "ait-04",
+            "arc-04"
+          ]
+        },
+        {
+          "area": "Law & Regulation",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "exact_concept",
+          "query_id": "q-law-1",
+          "relevant": [
+            "law-01"
+          ],
+          "top5": [
+            "law-01",
+            "ait-02",
+            "biz-01",
+            "law-03",
+            "law-05"
+          ]
+        },
+        {
+          "area": "Law & Regulation",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "cross_wording",
+          "query_id": "q-law-2",
+          "relevant": [
+            "law-04"
+          ],
+          "top5": [
+            "law-04",
+            "biz-03",
+            "fas-01",
+            "fas-02",
+            "fas-04"
+          ]
+        },
+        {
+          "area": "Law & Regulation",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "paraphrase",
+          "query_id": "q-law-3",
+          "relevant": [
+            "law-06"
+          ],
+          "top5": [
+            "law-06",
+            "law-03",
+            "biz-03",
+            "ait-03",
+            "law-01"
+          ]
+        },
+        {
+          "area": "Law & Regulation",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "terminology_variation",
+          "query_id": "q-law-4",
+          "relevant": [
+            "law-05"
+          ],
+          "top5": [
+            "law-05",
+            "law-01",
+            "arc-04",
+            "fas-06",
+            "ait-02"
+          ]
+        },
+        {
+          "area": "Fashion & Clothing",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "exact_concept",
+          "query_id": "q-fas-1",
+          "relevant": [
+            "fas-01"
+          ],
+          "top5": [
+            "fas-01",
+            "fas-05",
+            "fas-03",
+            "biz-02",
+            "fas-04"
+          ]
+        },
+        {
+          "area": "Fashion & Clothing",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "terminology_variation",
+          "query_id": "q-fas-2",
+          "relevant": [
+            "fas-06"
+          ],
+          "top5": [
+            "fas-06",
+            "arc-04",
+            "fas-02",
+            "fas-03",
+            "law-04"
+          ]
+        },
+        {
+          "area": "Fashion & Clothing",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "cross_wording",
+          "query_id": "q-fas-3",
+          "relevant": [
+            "fas-03"
+          ],
+          "top5": [
+            "fas-03",
+            "fas-05",
+            "fas-02",
+            "fas-06",
+            "fas-04"
+          ]
+        },
+        {
+          "area": "Fashion & Clothing",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "paraphrase",
+          "query_id": "q-fas-4",
+          "relevant": [
+            "fas-02"
+          ],
+          "top5": [
+            "fas-02",
+            "fas-03",
+            "fas-06",
+            "law-05",
+            "fas-05"
+          ]
+        },
+        {
+          "area": "Business & Opportunity Trends",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "exact_concept",
+          "query_id": "q-biz-1",
+          "relevant": [
+            "biz-01"
+          ],
+          "top5": [
+            "biz-01",
+            "biz-03",
+            "ait-02",
+            "ait-01",
+            "ait-06"
+          ]
+        },
+        {
+          "area": "Business & Opportunity Trends",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "paraphrase",
+          "query_id": "q-biz-2",
+          "relevant": [
+            "biz-02"
+          ],
+          "top5": [
+            "biz-02",
+            "fas-05",
+            "mkt-05",
+            "fas-01",
+            "fas-03"
+          ]
+        },
+        {
+          "area": "Business & Opportunity Trends",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "implicit_semantic",
+          "query_id": "q-biz-3",
+          "relevant": [
+            "biz-04"
+          ],
+          "top5": [
+            "biz-04",
+            "biz-06",
+            "biz-03",
+            "law-03",
+            "arc-05"
+          ]
+        },
+        {
+          "area": "Business & Opportunity Trends",
+          "first_relevant_rank": 1,
+          "ndcg@10": 1.0,
+          "pattern": "cross_wording",
+          "query_id": "q-biz-4",
+          "relevant": [
+            "biz-06"
+          ],
+          "top5": [
+            "biz-06",
+            "biz-03",
+            "biz-01",
+            "biz-04",
+            "arc-05"
+          ]
+        }
+      ],
+      "dimension": 768,
+      "error": "",
+      "model": "granite-embedding:278m",
+      "mrr": 1.0,
+      "ndcg_at_10": 0.9957,
+      "per_area": {
+        "AI & Technology": {
+          "mrr": 1.0,
+          "ndcg@10": 0.9832,
+          "queries": 4.0,
+          "recall@1": 0.875,
+          "recall@10": 1.0,
+          "recall@3": 0.875,
+          "recall@5": 1.0
+        },
+        "Architecture, Construction & Real Estate": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 4.0,
+          "recall@1": 1.0,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "Business & Opportunity Trends": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 4.0,
+          "recall@1": 1.0,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "Fashion & Clothing": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 4.0,
+          "recall@1": 1.0,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "Law & Regulation": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 4.0,
+          "recall@1": 1.0,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "Markets & Investment": {
+          "mrr": 1.0,
+          "ndcg@10": 0.991,
+          "queries": 4.0,
+          "recall@1": 0.875,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        }
+      },
+      "per_pattern": {
+        "cross_wording": {
+          "mrr": 1.0,
+          "ndcg@10": 0.991,
+          "queries": 4.0,
+          "recall@1": 0.875,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "exact_concept": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 6.0,
+          "recall@1": 1.0,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "implicit_semantic": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 3.0,
+          "recall@1": 1.0,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "paraphrase": {
+          "mrr": 1.0,
+          "ndcg@10": 0.9888,
+          "queries": 6.0,
+          "recall@1": 0.9167,
+          "recall@10": 1.0,
+          "recall@3": 0.9167,
+          "recall@5": 1.0
+        },
+        "specific_fact": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 1.0,
+          "recall@1": 1.0,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        },
+        "terminology_variation": {
+          "mrr": 1.0,
+          "ndcg@10": 1.0,
+          "queries": 4.0,
+          "recall@1": 1.0,
+          "recall@10": 1.0,
+          "recall@3": 1.0,
+          "recall@5": 1.0
+        }
+      },
+      "performance": {
+        "amortized_passage_latency_ms": 129.4,
+        "avg_query_latency_ms": 128.4,
+        "corpus_embed_seconds": 4.66,
+        "max_query_latency_ms": 170.9,
+        "model_load_seconds": 2.872,
+        "passages": 36
+      },
+      "recall_at_k": {
+        "1": 0.9583,
+        "3": 0.9792,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "sanity": {
+        "all_values_finite": true,
+        "dimension_consistent": true,
+        "long_input_dimension": 768,
+        "query_vs_passage_cosine_on_same_text": 1.0,
+        "repeat_cosine_similarity": 1.0
+      },
+      "status": "OK"
+    }
+  ],
+  "similarity": "cosine"
+}

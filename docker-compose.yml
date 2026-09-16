@@ -1,0 +1,166 @@
+# Signal Engine — one-command local system (docs/03-technical-spec.md Section 17;
+# CLAUDE.md Sections 21, 29).
+#
+# Phase 1 (docs/11-roadmap.md Section 4) establishes the service topology, a local
+# PostgreSQL instance, and health checks. The database is provisioned now but the
+# backend does not connect to it until Phase 2. Ollama starts with the normal
+# `docker compose up` (no profile) for embeddings only (embeddinggemma); the
+# generative LLM is NVIDIA Build (AGENTS_LLM_PROVIDER=nvidia). `ollama-pull`
+# fetches the configured embedding model automatically. A host Ollama (configured
+# OLLAMA_URL) remains a supported alternative for embeddings — stop the
+# `ollama`/`ollama-pull` services in that case.
+#
+# All published ports bind to 127.0.0.1 only (docs/03-technical-spec.md Section 20.1).
+
+name: signal-engine
+
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-signal_engine}
+      POSTGRES_USER: ${POSTGRES_USER:-signal_engine}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-signal_engine}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-signal_engine} -d ${POSTGRES_DB:-signal_engine}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    environment:
+      SERVER_ADDRESS: 0.0.0.0
+      SERVER_PORT: 8080
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
+      # Reach the db service on the Compose network; Flyway runs the migrations
+      # on startup (docs/03-technical-spec.md Section 4.8).
+      DATABASE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-signal_engine}
+      DATABASE_USERNAME: ${POSTGRES_USER:-signal_engine}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-signal_engine}
+      # Reach the AI capability service by its Compose service name, not localhost
+      # (docs/adr/0006-ai-java-python-foundation.md).
+      AGENTS_BASE_URL: http://agents:8100
+    ports:
+      - "127.0.0.1:${SERVER_PORT:-8080}:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      agents:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+  agents:
+    build: ./agents
+    environment:
+      AGENTS_HOST: 0.0.0.0
+      AGENTS_PORT: 8100
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      # LLM provider (docs/adr/0006-ai-java-python-foundation.md). Final decision:
+      # NVIDIA Build is the generative LLM; Ollama is kept only for embeddings
+      # below. NVIDIA_API_KEY is a secret supplied via .env, never given a value
+      # here. "ollama" remains a selectable fallback for the chat provider (its
+      # adapter is unchanged) but is no longer the default and its model is no
+      # longer pulled automatically (see ollama-pull below). "fake" runs the stack
+      # without any model (set AGENTS_FAKE_LLM_RESPONSES then). Neither Ollama nor
+      # NVIDIA is required for tests — those construct their own provider.
+      AGENTS_LLM_PROVIDER: ${AGENTS_LLM_PROVIDER:-nvidia}
+      OLLAMA_URL: ${OLLAMA_URL:-http://ollama:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-gpt-oss:20b}
+      NVIDIA_BASE_URL: ${NVIDIA_BASE_URL:-https://integrate.api.nvidia.com/v1}
+      NVIDIA_MODEL: ${NVIDIA_MODEL:-nvidia/nemotron-3-super-120b-a12b}
+      NVIDIA_API_KEY: ${NVIDIA_API_KEY:-}
+      # Embedding model (docs/adr/0011). "embeddinggemma" is the Task 8.3A
+      # benchmark recommendation, served by Ollama — the ollama-pull service
+      # below pulls it automatically. Embeddings and chat are independent
+      # provider choices; only OLLAMA_URL is shared between them.
+      AGENTS_EMBEDDING_PROVIDER: ${AGENTS_EMBEDDING_PROVIDER:-ollama}
+      OLLAMA_EMBEDDING_MODEL: ${OLLAMA_EMBEDDING_MODEL:-embeddinggemma}
+      EMBEDDING_REQUEST_TIMEOUT_SECONDS: ${EMBEDDING_REQUEST_TIMEOUT_SECONDS:-30}
+      # Measured against the real, running gpt-oss:20b on CPU-only local hardware
+      # (was 60s — too short even for a trivial prompt's "thinking" tokens; see
+      # backend's signal-engine.ai.request-timeout, kept longer than this on purpose).
+      AGENTS_LLM_REQUEST_TIMEOUT_SECONDS: ${AGENTS_LLM_REQUEST_TIMEOUT_SECONDS:-240}
+    ports:
+      - "127.0.0.1:${AGENTS_PORT:-8100}:8100"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8100/health').status==200 else 1)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  frontend:
+    build: ./frontend
+    environment:
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://127.0.0.1:8080}
+    ports:
+      - "127.0.0.1:5173:5173"
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+  # Started by the normal `docker compose up` — no profile gate. Final provider decision:
+  # Ollama is kept only for embeddings (embeddinggemma, used by RAG indexing) — the
+  # generative LLM (near-duplicate, relevance, importance, summarization, grounded Q&A)
+  # uses NVIDIA Build instead (see AGENTS_LLM_PROVIDER above). A host Ollama remains a
+  # supported alternative for embeddings (override OLLAMA_URL and stop this
+  # service/ollama-pull).
+  ollama:
+    # Pinned to the release the embedding benchmark ran against (docs/07-rag.md
+    # Section 22.5; docs/adr/0011). Explicit tag, not `latest`, for reproducibility
+    # (docs/03-technical-spec.md Section 19.3, 20.3); Dependabot proposes bumps.
+    image: ollama/ollama:0.33.3
+    ports:
+      # Overridable like every other published port (SERVER_PORT, AGENTS_PORT,
+      # POSTGRES_PORT) — a host machine that already runs its own Ollama on the
+      # default 11434 would otherwise conflict with this container's port publish.
+      - "127.0.0.1:${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    healthcheck:
+      # The API server, not model availability, and nothing needs to block on the pull
+      # anyway (see ollama-pull below). `ollama list` only talks to the local server; no
+      # network call.
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # One-shot: pulls the configured embedding model (OLLAMA_EMBEDDING_MODEL, used by RAG
+  # indexing) into the `ollama` service's own volume via its HTTP API (the `ollama` CLI
+  # here talks to OLLAMA_HOST, it does not run its own server), so the download is
+  # explicit and observable (`docker compose logs ollama-pull`) rather than assumed.
+  # Does NOT pull a chat/generative model — the generative LLM is NVIDIA Build, not
+  # Ollama (see AGENTS_LLM_PROVIDER above); OLLAMA_MODEL/gpt-oss:20b is no longer
+  # fetched here. Idempotent — an already-pulled model is skipped — so it is harmless and
+  # fast on every subsequent `docker compose up`. Nothing depends on it finishing: a slow
+  # first-time download must not delay backend/agents becoming healthy (they already
+  # retry AI calls until the model is ready, the same idempotent design used throughout
+  # ingestion).
+  ollama-pull:
+    image: ollama/ollama:0.33.3
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: ollama:11434
+    entrypoint: ["ollama"]
+    command: ["pull", "${OLLAMA_EMBEDDING_MODEL:-embeddinggemma}"]
+    restart: "no"
+
+volumes:
+  db-data:
+  ollama-data:

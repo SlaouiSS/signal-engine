@@ -1,0 +1,15 @@
+{
+  "correlationId": "a1b2c3d4-0000-4000-8000-000000000001",
+  "contractVersion": 1,
+  "capability": "relevance",
+  "payload": {
+    "item": { "text": "The European Union formally adopted the AI Act, its landmark regulation of artificial intelligence." },
+    "areas": [
+      { "code": "LAW_AND_REGULATION", "name": "Law & Regulation" },
+      { "code": "AI_AND_TECHNOLOGY", "name": "AI & Technology" }
+    ],
+    "interests": [
+      { "id": "1f7b1e2a-0000-4000-8000-000000000010", "areaCode": "LAW_AND_REGULATION", "description": "EU technology regulation" }
+    ]
+  }
+}

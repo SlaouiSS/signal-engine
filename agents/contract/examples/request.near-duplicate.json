@@ -1,0 +1,16 @@
+{
+  "correlationId": "8b1a9953-1f3c-4b8e-9a1d-2c4e6f8a0b2d",
+  "contractVersion": 1,
+  "capability": "near-duplicate",
+  "payload": {
+    "candidate": {
+      "text": "The central bank raised its benchmark interest rate by half a point today."
+    },
+    "comparisons": [
+      { "id": "b7c2f1a0-0000-0000-0000-000000000001",
+        "text": "Policymakers lifted the key rate 50 basis points at the meeting that concluded today." },
+      { "id": "b7c2f1a0-0000-0000-0000-000000000002",
+        "text": "A new report ranks the city among the best places to launch a startup." }
+    ]
+  }
+}

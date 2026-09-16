@@ -1,0 +1,11 @@
+{
+  "correlationId": "a1b2c3d4-0000-4000-8000-000000000002",
+  "contractVersion": 1,
+  "capability": "importance",
+  "status": "success",
+  "result": {
+    "importantEnough": true,
+    "reason": "A first-of-its-kind, economy-wide AI law with broad compliance impact."
+  },
+  "meta": { "provider": "ollama", "model": "gpt-oss:20b", "promptVersion": "importance/v1", "durationMillis": 610 }
+}

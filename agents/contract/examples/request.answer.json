@@ -1,0 +1,20 @@
+{
+  "correlationId": "a1b2c3d4-0000-4000-8000-000000000009",
+  "contractVersion": 1,
+  "capability": "answer",
+  "payload": {
+    "question": "When do the EU AI Act rules for the highest-risk systems take effect?",
+    "passages": [
+      {
+        "passageId": "doc-eu-ai-act::0",
+        "text": "The European Union formally adopted the AI Act. It sets tiered obligations by risk level and phases in over two years, with the rules for the highest-risk systems applying first.",
+        "source": "Example Newswire"
+      },
+      {
+        "passageId": "doc-eu-ai-act::1",
+        "text": "A separate code of practice for general-purpose model providers is still being drafted and is expected later.",
+        "source": "Example Newswire"
+      }
+    ]
+  }
+}
