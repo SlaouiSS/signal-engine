@@ -5,7 +5,7 @@
 # with backend/gradle/libs.versions.toml (`java`).
 
 # --- build stage ---
-FROM eclipse-temurin:21-jdk AS build
+FROM eclipse-temurin:25-jdk AS build
 WORKDIR /workspace
 
 # Warm the Gradle cache on dependency descriptors first.
@@ -17,7 +17,7 @@ COPY src ./src
 RUN ./gradlew --no-daemon clean bootJar -x test
 
 # --- runtime stage ---
-FROM eclipse-temurin:21-jre AS runtime
+FROM eclipse-temurin:25-jre AS runtime
 WORKDIR /app
 
 # curl is used only by the container health check in docker-compose.yml.
