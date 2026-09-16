@@ -44,7 +44,7 @@ jobs:
         run: ./gradlew integrationTest
       - name: Upload reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: backend-reports
           path: |
@@ -52,7 +52,7 @@ jobs:
             backend/build/test-results/
           if-no-files-found: ignore
       - name: Package (boot jar)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: backend-jar
           path: backend/build/libs/*.jar
@@ -84,7 +84,7 @@ jobs:
         run: uv run python -m app.contract_schema --check
       - name: Package (wheel)
         run: uv build
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: agents-dist
           path: agents/dist/*
@@ -114,7 +114,7 @@ jobs:
         run: npm test
       - name: Build
         run: npm run build
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: frontend-bundle
           path: frontend/dist/
