@@ -33,7 +33,7 @@ jobs:
           # Target is Java 25 LTS (D1); 21 LTS is the accepted fallback and matches
           # the Gradle toolchain in backend/gradle/libs.versions.toml.
           java-version: "21"
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
       - name: Ensure wrapper is executable
         run: chmod +x gradlew
       - name: Static quality (Spotless)
@@ -129,7 +129,7 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
       - name: Install uv
         uses: astral-sh/setup-uv@v6
         with:
