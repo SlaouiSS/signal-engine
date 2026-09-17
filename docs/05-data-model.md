@@ -1,7 +1,9 @@
 # Signal Engine — Data Model
 
 Document ID: `05-data-model.md`
-Status: Draft — awaiting review
+Status: Accepted — reviewed as part of the Phase 0 documentation baseline
+(`docs/11-roadmap.md` Section 3); decisions this document marks open or
+provisional remain open or provisional until resolved.
 Depends on: `CLAUDE.md`, `docs/01-product-spec.md`, `docs/02-functional-spec.md`,
 `docs/03-technical-spec.md`, `docs/04-architecture.md`
 

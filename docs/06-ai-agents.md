@@ -1,7 +1,9 @@
 # Signal Engine — AI Agents
 
 Document ID: `06-ai-agents.md`
-Status: Draft — awaiting review
+Status: Accepted — reviewed as part of the Phase 0 documentation baseline
+(`docs/11-roadmap.md` Section 3); decisions this document marks open or
+provisional remain open or provisional until resolved.
 Depends on: `CLAUDE.md`, `docs/01-product-spec.md`, `docs/02-functional-spec.md`,
 `docs/03-technical-spec.md`, `docs/04-architecture.md`, `docs/05-data-model.md`
 
@@ -504,7 +506,9 @@ side capability, used only when content is prepared for retrieval.
    `AI_PROVIDER_*` error and the library treats a failure to obtain a response
    as terminal for that document.
 10. **Replaceability:** model and provider are configuration only
-    (`AGENTS_LLM_PROVIDER` — Ollama, or NVIDIA Build for development); the
+    (`AGENTS_LLM_PROVIDER` — NVIDIA Build is the current/default generative
+    provider, the final provider decision (`docs/adr/0006-ai-java-python-foundation.md`);
+    Ollama remains a selectable fallback for the chat provider); the
     capability contract does not change. It uses the existing chat provider port,
     so Section 9's "two ports are sufficient" still holds.
 
@@ -854,8 +858,9 @@ the specification that originated it.
 - **Exact output schemas** beyond the capability table and common envelope
   already fixed in `docs/03-technical-spec.md` Section 7.2 and 8.2 — precise
   field names/types are implementation work, not defined here.
-- **Exact model assignment per capability** — beyond "all capabilities default
-  to Ollama + `gpt-oss:20b`, configurable per capability"
+- **Exact model assignment per capability** — beyond "the generative LLM
+  defaults to NVIDIA Build, embeddings default to Ollama running
+  `embeddinggemma`, both configurable per capability"
   (`docs/03-technical-spec.md` Section 9.3), which capability might later use
   a different model is not decided.
 - **Exact prompt design** — prompt wording and structure are implementation

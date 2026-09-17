@@ -1,9 +1,9 @@
 # Signal Engine — Implementation Roadmap
 
 Document ID: `11-roadmap.md`
-Status: Living document — Phases 0–7 complete, Phase 8 substantially implemented;
-Phase 9 (Frontend) is the next major implementation phase. See *Implementation
-status* below (updated 2026-09-08). No open question is resolved by that update.
+Status: Living document — Phases 0–9 complete for their scope; Phase 10
+(Alerts) is the next major implementation phase. See *Implementation status*
+below (updated 2026-09-17). No open question is resolved by that update.
 Depends on: `CLAUDE.md`, `docs/01-product-spec.md`, `docs/02-functional-spec.md`,
 `docs/03-technical-spec.md`, `docs/04-architecture.md`, `docs/05-data-model.md`,
 `docs/06-ai-agents.md`, `docs/07-rag.md`, `docs/08-ingestion.md`,
@@ -94,10 +94,10 @@ vertical implementation (Section 17) — but it fixes the order in which
 
 ---
 
-## 2.1 Implementation Status (2026-09-08)
+## 2.1 Implementation Status (updated 2026-09-17)
 
-Phases 0–7 are complete and Phase 8 is substantially implemented, all built from
-the approved documentation. The RAG work is broken into **Tasks 8.1–8.6**, which
+Phases 0–9 are complete for their scope, all built from the approved
+documentation. The RAG work is broken into **Tasks 8.1–8.6**, which
 are implementation tasks *inside* Phases 7 and 8 — **not** an alternative
 project-phase numbering scheme.
 
@@ -973,10 +973,12 @@ this series has followed.
 Lightweight checkpoints between phases — no numeric performance target is
 defined at any checkpoint.
 
-**Status (2026-09-08):** Checkpoints 1–5 are met. Checkpoint 6 (RAG) is **partly
-met** — semantic search and grounded Q&A run as a tested `RagPipeline`, but not
-yet against stored Signal Engine content and not yet through the `/api/v1`
-surface. Checkpoints 7–8 are upcoming.
+**Status (2026-09-17):** Checkpoints 1–7 are met. Checkpoint 6 (RAG) is met —
+semantic search and grounded Q&A run as a tested `RagPipeline`, exposed through
+the `/api/v1/search` and `/api/v1/questions` endpoints, against a knowledge base
+populated automatically from stored Signal Engine content. Checkpoint 7
+(Product) is met by Phase 9's complete frontend. Checkpoint 8 (Hardening) is
+upcoming.
 
 - **Checkpoint 1 — Foundation.** The project builds and starts locally
   (Phase 1).
@@ -1024,11 +1026,13 @@ A concise, numbered order suitable as an actual execution sequence:
 No source-code-level implementation detail is defined here — this is a
 sequence, not a design.
 
-**Current position (2026-09-11):** steps 1–15 are done; semantic search and
+**Current position (2026-09-17):** steps 1–16 are done; semantic search and
 grounded Q&A are implemented as a `RagPipeline`, exposed through
-`/api/v1/search` and `/api/v1/questions`, and the knowledge base they read from
-is now populated automatically as relevant information is confirmed. The next
-major step is **16 — build the frontend (Phase 9)**. Steps 17–19 follow.
+`/api/v1/search` and `/api/v1/questions`, the knowledge base they read from is
+populated automatically as relevant information is confirmed, and the frontend
+(Phase 9) covers Sources, Interests, Signals with feedback, Search, Q&A, and
+Activity. The next major step is **17 — add alerts**, once the Q19/Q20
+decisions are made. Steps 18–19 follow.
 
 ---
 
@@ -1067,9 +1071,11 @@ boundary already established; and no premature complexity — technical,
 product, or organizational — is introduced by this roadmap or by the
 implementation it describes.
 
-As of 2026-09-11, Phases 0–8 are complete: Phase 8's RAG pipeline (Tasks
-8.1–8.6) is implemented, tested, exposed through `/api/v1`, and its knowledge
-base is populated automatically (Section 2.1). The next major implementation
-phase is **Phase 9 — Frontend**. Every `Q*` / `T*` decision that was open
-before this update is still open, except the physical identifier strategy,
-decided in `docs/adr/0001`.
+As of 2026-09-17, Phases 0–9 are complete for their scope: Phase 8's RAG
+pipeline (Tasks 8.1–8.6) is implemented, tested, exposed through `/api/v1`,
+and its knowledge base is populated automatically; Phase 9's frontend covers
+Sources, Interests, Signals with feedback, Search, Q&A, and Activity
+(Section 2.1). The next major implementation phase is **Phase 10 — Alerts**,
+gated on Q19 and Q20. Every `Q*` / `T*` decision that was open before this
+update is still open, except the physical identifier strategy, decided in
+`docs/adr/0001`.

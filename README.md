@@ -68,6 +68,26 @@ baseline (T7); a boolean near-duplicate verdict with no numeric threshold
 length (Q14). See `docs/11-roadmap.md` Section 2.1 and Section 18, and
 `docs/03-technical-spec.md` Section 24.
 
+## Non-goals / current limitations
+
+Signal Engine's MVP is deliberately scoped. At minimum:
+
+- **Single-user, no authentication.** There is exactly one user role and no
+  login; the API is not designed to be exposed beyond localhost/trusted-network
+  access as-is (`docs/02-functional-spec.md` R14, `docs/10-security.md`).
+- **No collection scheduler.** Source collection is invoked explicitly; there
+  is no cron/background job that collects on a cadence yet (Phase 10+ scope,
+  `docs/11-roadmap.md`).
+- **Alerts are not implemented.** No alert domain object, endpoint, or
+  notification mechanism exists yet — see "Not built yet" above and Phase 10.
+- **No forecasting, trend analysis, correlation, or opportunity/recommendation
+  scoring.** Signal Engine presents signals; it does not predict outcomes or
+  recommend actions (`docs/01-product-spec.md` Section 9).
+
+This list is not exhaustive; `docs/11-roadmap.md` Section 16 ("Explicitly
+Deferred Work") is the authoritative list of everything intentionally out of
+scope for the MVP.
+
 ## Repository layout
 
 | Path | What it is |
@@ -80,6 +100,15 @@ length (Q14). See `docs/11-roadmap.md` Section 2.1 and Section 18, and
 | `docker-compose.yml` | One-command local system: `db` (PostgreSQL 17 + pgvector), `backend`, `agents`, `frontend`, `ollama`, and the one-shot `ollama-pull`. |
 
 The architecture and its boundaries are described in `docs/04-architecture.md`.
+
+**RAG implementation.** The framework-independent RAG core (chunking, context
+assembly, embedding contract, retrieval, generation, indexing, evaluation)
+lives under `backend/src/main/java/org/signalengine/rag/`, with its Spring/
+pgvector/AI-capability adapters under
+`backend/src/main/java/org/signalengine/infrastructure/rag/`. The Python side
+provides the `embed`, `semantic-chunk-boundary`, and `answer` capabilities
+(`agents/`, see the repository layout above). The design is documented in
+`docs/07-rag.md`.
 
 ## Prerequisites
 
@@ -130,6 +159,13 @@ for embeddings (stop the `ollama`/`ollama-pull` services in that case).
 Running the backend on the host needs a reachable PostgreSQL: start just the
 database with `docker compose up -d db` first (or run the full stack).
 
+**Initial source seeding.** A fresh system starts with no configured sources.
+Once the backend is up, `make seed` (`scripts/seed-sources.sh`) registers a
+curated starter set of sources via the public `POST /api/v1/sources` API — the
+same way a user would add them. This is explicit and opt-in, never automatic:
+the concrete source list remains an open product decision
+(`docs/02-functional-spec.md` Q1), so nothing is seeded unless you run it.
+
 ### Individual sub-projects
 
 ```bash
@@ -176,3 +212,7 @@ behavior, read the relevant document; if an implementation changes an
 architectural decision, update the document (and add an ADR — `CLAUDE.md`
 Section 22). The entire project is in English. See `CLAUDE.md` for the working
 rules.
+
+## License
+
+Signal Engine is licensed under the [MIT License](LICENSE).

@@ -1,7 +1,9 @@
 # Signal Engine — Product Specification
 
 Document ID: `01-product-spec.md`
-Status: Draft — awaiting review
+Status: Accepted — reviewed as part of the Phase 0 documentation baseline
+(`docs/11-roadmap.md` Section 3); decisions this document marks open or
+provisional remain open or provisional until resolved.
 Scope: Product requirements only. This document does not define the technical
 stack, frameworks, database technology, AI models or providers, agent design,
 communication protocols, or software architecture. Those belong to later

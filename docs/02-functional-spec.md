@@ -1,7 +1,9 @@
 # Signal Engine — Functional Specification
 
 Document ID: `02-functional-spec.md`
-Status: Draft — awaiting review
+Status: Accepted — reviewed as part of the Phase 0 documentation baseline
+(`docs/11-roadmap.md` Section 3); decisions this document marks open or
+provisional remain open or provisional until resolved.
 Depends on: `CLAUDE.md`, `docs/01-product-spec.md`
 
 Scope: Functional behavior only. This document describes **what** Signal Engine

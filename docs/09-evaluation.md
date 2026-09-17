@@ -1,7 +1,9 @@
 # Signal Engine — Evaluation Strategy
 
 Document ID: `09-evaluation.md`
-Status: Draft — awaiting review
+Status: Accepted — reviewed as part of the Phase 0 documentation baseline
+(`docs/11-roadmap.md` Section 3); decisions this document marks open or
+provisional remain open or provisional until resolved.
 Depends on: `CLAUDE.md`, `docs/01-product-spec.md`, `docs/02-functional-spec.md`,
 `docs/03-technical-spec.md`, `docs/04-architecture.md`, `docs/05-data-model.md`,
 `docs/06-ai-agents.md`, `docs/07-rag.md`, `docs/08-ingestion.md`
