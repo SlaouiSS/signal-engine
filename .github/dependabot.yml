@@ -1,35 +1,66 @@
 version: 2
 
-# Automated dependency-update PRs across every ecosystem
-# (docs/03-technical-spec.md Section 18.1, 19.3; docs/10-security.md Section 17).
-# Every update PR must pass the full CI pipeline before merge.
+# Automated dependency-update PRs across every ecosystem.
+# Minor and patch updates are grouped to reduce PR noise.
+# Major updates remain separate because they may require manual review.
+# Security updates remain enabled and are handled separately by Dependabot.
 
 updates:
   - package-ecosystem: gradle
     directory: /backend
     schedule:
       interval: weekly
+    groups:
+      gradle-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
 
   - package-ecosystem: uv
     directory: /agents
     schedule:
       interval: weekly
+    groups:
+      uv-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
 
   - package-ecosystem: npm
     directory: /frontend
     schedule:
       interval: weekly
+    groups:
+      npm-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
 
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    groups:
+      github-actions-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
 
   - package-ecosystem: docker
     directories:
       - /backend
       - /agents
       - /frontend
-      - / # the root docker-compose.yml (db, ollama images)
+      - /
     schedule:
       interval: weekly
+    groups:
+      docker-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
