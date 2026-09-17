@@ -1,7 +1,9 @@
 # Signal Engine — Technical Specification
 
 Document ID: `03-technical-spec.md`
-Status: Draft — awaiting review
+Status: Accepted — reviewed as part of the Phase 0 documentation baseline
+(`docs/11-roadmap.md` Section 3); decisions this document marks open or
+provisional remain open or provisional until resolved.
 Depends on: `CLAUDE.md`, `docs/01-product-spec.md`, `docs/02-functional-spec.md`
 
 Scope: This document defines **how** Signal Engine should be built technically —
@@ -871,8 +873,12 @@ No layer above the provider adapter names a provider or model. `ollama` and
 
 - Per **capability**, configuration specifies: provider id, model id, generation
   parameters (temperature, max tokens, etc.), timeout, and prompt version.
-- Defaults: all capabilities → Ollama + `gpt-oss:20b`; embeddings → a local
-  embedding model (**proposed default / open**, Section 24, T3).
+- Defaults: all capabilities' generative LLM → **NVIDIA Build**
+  (`AGENTS_LLM_PROVIDER=nvidia`) — the final provider decision (Section 17.2;
+  `docs/adr/0006-ai-java-python-foundation.md`), not the originally proposed
+  Ollama + `gpt-oss:20b`, which remains a selectable fallback; embeddings →
+  Ollama running `embeddinggemma` (**provisional default**, Section 24, T3;
+  `docs/adr/0011-embedding-contract-and-local-model.md`).
 - The design permits **different models per capability** later (for example a
   smaller model for classification, a larger one for summarization) purely
   through configuration.
@@ -1716,7 +1722,7 @@ document):
 | D10 | Bounded retries with exponential backoff + jitter; explicit timeouts; retryable vs non-retryable taxonomy | Resilience without hidden loops |
 | D11 | Structured logging with a correlation/processing id; OpenTelemetry tracing across Java→Python→LLM via `spring-boot-starter-opentelemetry` (Micrometer + OTLP) and the OpenTelemetry Python SDK | Basic operational visibility, no dashboard |
 | D12 | **Flyway** SQL migrations; **Testcontainers 2.x** integration tests against real PostgreSQL 17 + pgvector | Reproducible schema; realistic tests |
-| D13 | Docker Compose for a one-command local system; Ollama optional/host by default | Contributor onboarding |
+| D13 | Docker Compose for a one-command local full-stack system; Ollama is part of the default Compose stack (started by the normal `docker compose up`, no profile flag), providing embeddings (`embeddinggemma`) — a host Ollama remains a supported alternative. The generative LLM is **NVIDIA Build**, not Ollama (Section 17.2; `docs/adr/0006`) | Contributor onboarding |
 | D14 | GitHub Actions: PR validation (build, lint, unit, integration, contract, security), main image build; releases as an evolution. Security = **Trivy + Dependabot + CodeQL** (complementary, not duplicated) | Practical open-source CI/CD |
 | D15 | **React 19 + TypeScript 6.x + Vite 8** frontend consuming only `/api/v1`; typed client generated from OpenAPI; no direct DB access; **no state-management library** | Agreed direction; contract safety; MVP simplicity |
 | D16 | No authentication in the MVP; localhost binding; auth addable at the inbound boundary later | `docs/02-functional-spec.md` R14 |

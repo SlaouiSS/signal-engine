@@ -1,12 +1,13 @@
 • # Signal Engine  Principal Engineer Code Review
 
-## Resolution Status (added 2026-09-16 — not part of the original review)
+## Resolution Status (added 2026-09-16, updated 2026-09-17 — not part of the original review)
 
 **This document is a historical audit snapshot, not a live status report.** Everything below this
 section is the original review exactly as written on 2026-09-08, unedited. This note records what
 has changed in the repository since, without altering the original findings, evidence, or verdict.
+The original review itself was not re-run; this is a current update to this note only.
 
-Section 3 below lists three HIGH findings. Two have since been resolved:
+Section 3 below lists three HIGH findings. All three have since been resolved:
 
 - **"Redirect responses bypass the configured response-size limit" — RESOLVED.**
   `HttpSourceCollector.drain()`
@@ -24,11 +25,17 @@ Section 3 below lists three HIGH findings. Two have since been resolved:
   time-of-check/time-of-use gap this finding identified. **`docs/adr/0017-outbound-fetch-ssrf-dns-rebinding.md`
   contains the detailed remediation design and reasoning.**
 
-- **"The repository has no version-controlled baseline"** — not addressed by this note. This is a
-  separate, distinct HIGH finding tracked outside the scope of this document update.
+- **"The repository has no version-controlled baseline" — RESOLVED (as of 2026-09-17).** The
+  repository now has a committed, version-controlled baseline: an initial commit (`31ef4f5`,
+  2026-09-17) containing the intended source, lockfiles, docs, CI configuration, and `.gitignore`
+  rules exactly as the finding's recommended direction asked for, followed by further commits and
+  merged pull requests on the repository as published on GitHub
+  (`https://github.com/SlaouiSS/signal-engine`). The finding's stated consequence — no reliable
+  review history, PR-based CI, release provenance, or rollback capability — no longer describes the
+  current repository state.
 
 The **Final Verdict** in Section 15 ("DO NOT PROCEED — CRITICAL/HIGH ISSUES MUST BE FIXED FIRST")
-applied to the implementation as it stood on 2026-09-08. For the two findings resolved above, it no
+applied to the implementation as it stood on 2026-09-08. For the three findings resolved above, it no
 longer describes the current codebase. It is left unedited below as part of the historical record.
 
 ---
