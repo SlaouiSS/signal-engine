@@ -588,13 +588,22 @@ distributed locks, queues, Kafka, Redis, or workflow engines are introduced
 
 ## 16. Collection Cadence and Scheduling
 
-**Scheduling is a Java responsibility.** The backend's scheduler triggers
-collection and drives pending work; no Python capability schedules anything
-(`docs/03-technical-spec.md` Section 6.3, 6.5).
+**Current implementation.** There is no scheduler. `StartupIngestionRunner`
+(backend, infrastructure layer) runs the ingestion pipeline — collect → group →
+process, over the sources that are configured and enabled at that moment — once,
+in the background, when the backend process starts. It never delays startup and a
+failure in it is not a startup failure. Because every stage is idempotent,
+restarting the backend re-runs the pipeline without duplicating work. There is no
+recurring trigger and no collect-now endpoint or other manual trigger.
 
-The ingestion architecture supports **automated collection** — collection runs
-without the user manually intervening after sources are configured
-(`docs/02-functional-spec.md` Section 6.1).
+**Target design (not built).** Scheduling is a Java responsibility: a backend
+scheduler is intended to trigger collection and drive pending work; no Python
+capability schedules anything (`docs/03-technical-spec.md` Section 6.3, 6.5).
+
+The ingestion architecture is designed to support **automated collection** —
+collection running repeatedly without the user manually intervening after
+sources are configured (`docs/02-functional-spec.md` Section 6.1). The startup
+run above is the only automation implemented today.
 
 **Preserved, not decided here:**
 

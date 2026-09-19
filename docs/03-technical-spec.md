@@ -317,13 +317,24 @@ Versions verified 2026-09-04 (see the note in the preamble).
 - **Cost:** FastAPI is still pre-1.0 (0.x) and can make small breaking changes
   between minors — pinned via the lockfile and covered by contract tests.
 
-### 4.6 LLM runtime: Ollama + `gpt-oss:20b` (initial), behind an abstraction
+### 4.6 LLM runtime: NVIDIA Build (generative) and Ollama (embeddings), behind an abstraction
 
-- **What:** Local LLM runtime (**Ollama**) and initial model (`gpt-oss:20b`) for
-  all LLM calls (classification, relevance, importance, summarization, answer
-  synthesis) and a local embedding model for vectors.
-- **Why:** Agreed direction. Local-first: no external dependency, no per-call
-  cost, no data leaving the machine.
+- **Current/default:** the generative LLM (near-duplicate, relevance, importance,
+  summarization, semantic chunking, answer synthesis) is **NVIDIA Build**
+  (`AGENTS_LLM_PROVIDER=nvidia`, model `nvidia/nemotron-3-super-120b-a12b`);
+  embeddings are **Ollama** running `embeddinggemma` (provisional, T3). See
+  Section 9.3, Section 17.2 and `docs/adr/0006-ai-java-python-foundation.md`.
+- **Historical (the original proposal, superseded for generation):** Ollama with
+  `gpt-oss:20b` for all LLM calls plus a local embedding model. Ollama +
+  `gpt-oss:20b` remains only a selectable generative fallback; the remainder of
+  this section describes that original proposal, and its Ollama-specific notes
+  still apply to the fallback adapter.
+- **What (original proposal):** Local LLM runtime (**Ollama**) and initial model
+  (`gpt-oss:20b`) for all LLM calls (classification, relevance, importance,
+  summarization, answer synthesis) and a local embedding model for vectors.
+- **Why (original proposal):** Agreed direction. Local-first: no external
+  dependency, no per-call cost, no data leaving the machine. (Generation now goes
+  to a hosted provider; embeddings still run locally.)
 - **Problem solved:** Semantic reasoning and text generation without a cloud
   account.
 - **Fit:** Personal, open-source, privacy-friendly MVP.
@@ -545,7 +556,8 @@ Versions verified 2026-09-04 (see the note in the preamble).
                                                               │  LLM provider abstraction
                                                               ▼
                                                   ┌────────────────────────┐
-                                                  │  Ollama (gpt-oss:20b)  │
+                                                  │  NVIDIA Build (LLM)    │
+                                                  │  Ollama (embeddings)   │
                                                   │  + future providers    │
                                                   └────────────────────────┘
 ```
@@ -843,14 +855,16 @@ AI capability service        (e.g. RelevanceAssessor, Summarizer, Embedder)
 LLM provider abstraction     (LlmChatProvider, EmbeddingProvider)
             │
             ▼
-Provider adapter             (OllamaChatAdapter, future: other adapters)
-            │
+Provider adapter             (Python: NvidiaLlmProvider, OllamaLlmProvider,
+            │                 OllamaEmbeddingProvider; future: other adapters)
             ▼
-Model runtime                (Ollama / future providers)
+Model runtime                (NVIDIA Build / Ollama / future providers)
 ```
 
-No layer above the provider adapter names a provider or model. `ollama` and
-`gpt-oss:20b` appear only in configuration and in the adapter.
+No layer above the provider adapter names a provider or model. Provider and
+model names (`nvidia`, `ollama`, `nvidia/nemotron-3-super-120b-a12b`,
+`embeddinggemma`, and the historical `gpt-oss:20b`) appear only in configuration
+and in the adapter.
 
 ### 9.2 Provider abstraction
 
