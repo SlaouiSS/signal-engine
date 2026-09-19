@@ -107,12 +107,12 @@ project-phase numbering scheme.
 | 1 | Project Foundation | **Complete** — repository layout, the three sub-project skeletons, Docker Compose, dependency/version management, CI, health checks, `/api/v1` conventions, OpenAPI |
 | 2 | Database / Persistence Foundation | **Complete** — Flyway migrations V1–V9, Spring Data JDBC ports + adapters (`docs/adr/0001`, `docs/adr/0002`) |
 | 3 | Backend Core / Contracts | **Complete** — application use-case ports, the `/api/v1` business API (RFC 9457, OpenAPI), the Java↔Python capability contract + transport (`docs/adr/0003`, `docs/adr/0004`, `docs/adr/0006`) |
-| 4 | Source Collection / Ingestion | **Complete for its validation scope** — one representative SSRF-guarded HTTP connector behind the `SourceCollector` port (scheme + resolved-address checks, bounded redirects and response size, validated-address pinning against DNS rebinding), deterministic normalisation + exact deduplication, provenance, processing state, idempotency (`docs/adr/0005`, `docs/adr/0017`); the use case is invoked explicitly, with no scheduler (cadence = Q9, open) and the final source list/types still open (Q1) |
+| 4 | Source Collection / Ingestion | **Complete for its validation scope** — one representative SSRF-guarded HTTP connector behind the `SourceCollector` port (scheme + resolved-address checks, bounded redirects and response size, validated-address pinning against DNS rebinding), deterministic normalisation + exact deduplication, provenance, processing state, idempotency (`docs/adr/0005`, `docs/adr/0017`); the ingestion pipeline runs once, in the background, each time the backend process starts (`StartupIngestionRunner`: collect → group → process); there is no recurring scheduler and no collect-now endpoint or other manual trigger (cadence = Q9 and manual trigger = Q8 / T17, open), and the final source list/types are still open (Q1) |
 | 5 | Semantic Deduplication / Relevant Information | **Complete** — the `near-duplicate` capability + Java-owned grouping into Relevant Information (`docs/adr/0007`); a boolean "same underlying story?" verdict, no numeric threshold (Q12 / T15 open) |
 | 6 | Importance / Signal / Summary | **Complete** — the `relevance` / `importance` / `summarize` capabilities, deterministic Signal creation, the source-grounded Summary, migration V10 (`docs/adr/0008`); the Java Signal transition is kept thin (Q4 / T16 open) and summary length is provisional (Q14 open); classification is folded into `relevance` (`docs/adr/0008`; `docs/06-ai-agents.md` Section 4.2) |
-| 7 | Knowledge Base / Embeddings | **Complete** — the framework-free RAG core, semantic chunking, the embedding contract + a real local-model benchmark, and the PostgreSQL/pgvector passage-index persistence + indexing pipeline (migration V11) — Tasks 8.1–8.3B, `docs/adr/0009`–`0012`. `embeddinggemma` / 768 is **provisional** (T3); distance is cosine with no ANN index (T7). The indexing pipeline is not yet wired to run on stored content — which content is indexed is a later connective task (`docs/05-data-model.md` Section 16) |
+| 7 | Knowledge Base / Embeddings | **Complete** — the framework-free RAG core, semantic chunking, the embedding contract + a real local-model benchmark, and the PostgreSQL/pgvector passage-index persistence + indexing pipeline (migration V11) — Tasks 8.1–8.3B, `docs/adr/0009`–`0012`. `embeddinggemma` / 768 is **provisional** (T3); distance is cosine with no ANN index (T7). This phase delivered the indexing pipeline itself; it is wired to stored content in Phase 8, where an item is indexed the moment relevance assessment confirms it (see the Phase 8 row) — no backfill of records processed before that wiring existed (`docs/05-data-model.md` Section 16) |
 | 8 | Semantic Search / Grounded Q&A | **Complete** — retrieval → context assembly → grounded generation → grounding validation → deterministic evaluation, composed as a `RagPipeline` and exposed through the `/api/v1/search` and `/api/v1/questions` REST endpoints, each backed by a thin application use case (Tasks 8.3C–8.6, `docs/adr/0013`–`0016`). Index population is wired: `DefaultProcessRelevantInformationUseCase` indexes an item into `rag_passage`/`rag_passage_embedding` through `KnowledgeBaseIndexer` the moment relevance assessment confirms it — no scheduler, no backfill of records processed before this wiring existed. Advanced RAG (reranking, hybrid retrieval, query transformation, context compression, an LLM-judge) remains deferred |
-| 9 | Frontend | **Complete for its scope (Tasks 1–7 + Task 9 polish/integration; Task 8 Alerts intentionally deferred to Phase 10 — no alert backend capability exists yet).** Typed API client generated from the backend's OpenAPI document (`frontend/src/api/`, `npm run generate:api`). Screens implemented: Sources and Interests within the six fixed areas (`frontend/src/sources/`, `frontend/src/interests/`) — list, create, edit, enable/disable; no removal (the backend has none, by documented open decision — `ManageSourcesUseCase`/`ManageInterestsUseCase`); Signals (`frontend/src/signals/`) — newest-first list via `GET /api/v1/signals` (Task 3's backend-enabling addition), with a Relevant Information / provenance drill-down (source, original-source link) reached via the existing `GET /api/v1/relevant-information/{id}` and its `raw-information-items` sub-resource. No summary is shown — the backend exposes no Summary REST endpoint. Search (`frontend/src/search/`) — a query form over the existing `POST /api/v1/search`, rendering source-grounded passages in the backend's retrieval order with score, provenance, and an original-source link; no frontend ranking, filtering, or sorting. Q&A (`frontend/src/qa/`) — a single-question form over the existing `POST /api/v1/questions`, rendering the grounded answer with citations, or the backend's explicit "not enough information" outcome when `answered=false`; no conversation history, no frontend generation. Activity (`frontend/src/activity/`) — a read-only, newest-first feed via the existing `GET /api/v1/activity` (same bounded-list pattern as Signals); no detail drill-down, since the record already carries everything the backend exposes. Feedback — integrated into the Signals detail screen (`SignalDetail.tsx`, not a standalone screen) via the existing `POST /api/v1/signals/{signalId}/feedback`: a fixed relevant / not-relevant choice (the only verdicts the backend's `FeedbackVerdict` enum defines), shown only while the signal's state is `NEW`/`REVIEWED`; once feedback is recorded the signal's state becomes `KEPT`/`DISMISSED` (the only code path that sets those states) and the control is replaced by a plain acknowledgment — there is no edit/withdraw endpoint to build against, no free-text field (the backend accepts none), and no feedback-history view (`findBySignalId` exists on the repository but is not wired to any use case or controller). A Task 9 polish/integration pass reviewed navigation, loading/error/empty states, data safety, API usage, and accessibility across all six screens: it added the missing Retry action on the Sources and Interests load-error states (present everywhere else) and extracted the identical provenance-rendering markup duplicated between Search and Q&A into one shared `ProvenanceDetails` component; no other concrete defect was found. Alerts UI does not exist — Task 8 is deferred to Phase 10, since no alert backend capability exists yet (see Phase 10 below) |
+| 9 | Frontend | **Complete for its scope (Tasks 1–7 + Task 9 polish/integration; Task 8 Alerts intentionally deferred to Phase 10 — no alert backend capability exists yet).** Typed API client generated from the backend's OpenAPI document (`frontend/src/api/`, `npm run generate:api`). Seven screens implemented: Home (`frontend/src/home/`) — the default screen, a newest-first view of recent relevant information via the existing `GET /api/v1/relevant-information`, with a Signal badge and the Signals detail view when a record has become a Signal; Sources and Interests within the six fixed areas (`frontend/src/sources/`, `frontend/src/interests/`) — list, create, edit, enable/disable; no removal (the backend has none, by documented open decision — `ManageSourcesUseCase`/`ManageInterestsUseCase`); Signals (`frontend/src/signals/`) — newest-first list via `GET /api/v1/signals` (Task 3's backend-enabling addition), with a Relevant Information / provenance drill-down (source, original-source link) reached via the existing `GET /api/v1/relevant-information/{id}` and its `raw-information-items` sub-resource. No summary is shown — the backend exposes no Summary REST endpoint. Search (`frontend/src/search/`) — a query form over the existing `POST /api/v1/search`, rendering source-grounded passages in the backend's retrieval order with score, provenance, and an original-source link; no frontend ranking, filtering, or sorting. Q&A (`frontend/src/qa/`) — a single-question form over the existing `POST /api/v1/questions`, rendering the grounded answer with citations, or the backend's explicit "not enough information" outcome when `answered=false`; no conversation history, no frontend generation. Activity (`frontend/src/activity/`) — a read-only, newest-first feed via the existing `GET /api/v1/activity` (same bounded-list pattern as Signals); no detail drill-down, since the record already carries everything the backend exposes. Feedback — integrated into the Signals detail screen (`SignalDetail.tsx`, not a standalone screen) via the existing `POST /api/v1/signals/{signalId}/feedback`: a fixed relevant / not-relevant choice (the only verdicts the backend's `FeedbackVerdict` enum defines), shown only while the signal's state is `NEW`/`REVIEWED`; once feedback is recorded the signal's state becomes `KEPT`/`DISMISSED` (the only code path that sets those states) and the control is replaced by a plain acknowledgment — there is no edit/withdraw endpoint to build against, no free-text field (the backend accepts none), and no feedback-history view (`findBySignalId` exists on the repository but is not wired to any use case or controller). A Task 9 polish/integration pass reviewed navigation, loading/error/empty states, data safety, API usage, and accessibility across the six screens that existed at the time (Home was added afterwards): it added the missing Retry action on the Sources and Interests load-error states (present everywhere else) and extracted the identical provenance-rendering markup duplicated between Search and Q&A into one shared `ProvenanceDetails` component; no other concrete defect was found. Alerts UI does not exist — Task 8 is deferred to Phase 10, since no alert backend capability exists yet (see Phase 10 below) |
 | 10 | Alerts | **Not started** — begins only once Q19 (alert channel) and Q20 (alert retry) are decided; these remain gates |
 | 11 | Evaluation / Hardening | **Not started** — the dedicated, systematic end-to-end evaluation and security-hardening pass; distinct from the deterministic RAG-core `Evaluator` delivered in Task 8.6 (`docs/adr/0016`), which is a contract-level component, not the deferred AI evaluation subsystem/platform (Section 16) |
 
@@ -121,8 +121,8 @@ pipeline (Tasks 8.1–8.6) is implemented, tested, exposed through the
 `/api/v1/search` and `/api/v1/questions` endpoints, and its knowledge base is
 populated automatically — `DefaultProcessRelevantInformationUseCase` indexes an
 item the moment relevance assessment confirms it. Phase 9's frontend covers
-Sources, Interests, Signals (with Relevant Information detail and feedback),
-Search, Q&A, and Activity (Tasks 1–7), plus a Task 9 polish/integration pass;
+seven screens — Home, Sources, Interests, Signals (with Relevant Information
+detail and feedback), Search, Q&A, and Activity, plus a Task 9 polish/integration pass;
 Task 8 (Alerts frontend) is intentionally deferred — no alert backend
 capability exists to build it against. **The next major implementation phase
 is Phase 10 — Alerts**, beginning with the backend capability Task 8 found
@@ -281,9 +281,15 @@ minimal round-trip against one capability, to prove the envelope described in
 **Status: Complete for its validation scope** (`docs/adr/0005`; DNS-rebinding
 hardening in `docs/adr/0017`). One representative SSRF-guarded HTTP connector
 behind the `SourceCollector` port, with deterministic normalisation, exact
-deduplication, provenance, processing state, and idempotency. The use case is invoked explicitly — there is no
-scheduler yet (collection cadence is Q9, still open) — and the final source list
-and source types remain open (Q1).
+deduplication, provenance, processing state, and idempotency. **Current
+behavior:** `StartupIngestionRunner` runs the ingestion pipeline (collect →
+group → process, over the sources configured and enabled at that moment) once, in
+the background, when the backend process starts; each stage is idempotent, so a
+restart does not duplicate work. There is **no recurring scheduler** and **no
+collect-now endpoint or other manual trigger**. Recurring, scheduler-driven
+collection (`docs/08-ingestion.md` Section 16) is a target design, not built —
+its cadence is Q9 and a manual trigger is Q8 / T17, both still open — and the
+final source list and source types remain open (Q1).
 
 Implements the first complete, deterministic ingestion path, respecting
 `docs/08-ingestion.md` throughout:
@@ -465,8 +471,9 @@ structural `citationValidity`) plus findings; `RagEvaluationSummary` means a
 metric across a run set. **No LLM judge, no semantic factuality scoring, no
 combined RAG score** — those stay open decisions. Hybrid retrieval, reranking,
 query transformation, business metadata filtering, context compression /
-`ContextRefiner`, and any LLM-as-a-judge all stay deferred. Nothing indexes
-automatically; no search API, no scheduler yet.
+`ContextRefiner`, and any LLM-as-a-judge all stay deferred. As of Tasks 8.1–8.3B
+nothing yet indexed content automatically; index population and the search and
+question APIs were wired afterwards, in Phase 8 (Section 11).
 
 **The exact embedding model, vector dimension, chunking strategy, vector
 index type, and related parameters remain open unless explicitly decided
@@ -547,7 +554,10 @@ insufficient evidence must be reported explicitly, never fabricated
 **Status: Complete for its scope (Tasks 1–7 and Task 9; Task 8 Alerts
 deferred to Phase 10).** The Phase 1 skeleton (`frontend/`) now has a typed API
 client generated from the backend's OpenAPI document (`frontend/src/api/`;
-`npm run generate:api`) and the following product screens: **Sources**
+`npm run generate:api`) and the following seven product screens: **Home** (`frontend/src/home/`) — the
+default screen, a newest-first view of recent relevant information read from
+`GET /api/v1/relevant-information`, with a **Signal** badge and the same signal
+detail view when a record has become a Signal; **Sources**
 (`frontend/src/sources/`) and **Interests** within the six fixed areas
 (`frontend/src/interests/`) — list, create, edit, and enable/disable, using
 `GET/POST/PUT /api/v1/sources`, `GET/POST/PUT /api/v1/interests`, and the
@@ -581,7 +591,7 @@ schema exists anywhere in the backend — a total gap, not a partial one — so 
 Alerts UI was built; it is deferred to Phase 10 (Section 13), which must
 build the backend capability first. **Task 9 (polish/integration)** reviewed
 navigation, loading/error/empty states, data safety, API usage, and
-accessibility across all six screens: it added the Retry action that was
+accessibility across the six screens that existed at the time (Home was added afterwards): it added the Retry action that was
 missing from the Sources and Interests load-error states (present on every
 other screen) and extracted the identical provenance-rendering markup
 duplicated between Search and Q&A into one shared `ProvenanceDetails`
@@ -1074,8 +1084,8 @@ implementation it describes.
 As of 2026-09-17, Phases 0–9 are complete for their scope: Phase 8's RAG
 pipeline (Tasks 8.1–8.6) is implemented, tested, exposed through `/api/v1`,
 and its knowledge base is populated automatically; Phase 9's frontend covers
-Sources, Interests, Signals with feedback, Search, Q&A, and Activity
-(Section 2.1). The next major implementation phase is **Phase 10 — Alerts**,
+seven screens (Home, Sources, Interests, Signals with feedback, Search, Q&A,
+and Activity; Section 2.1). The next major implementation phase is **Phase 10 — Alerts**,
 gated on Q19 and Q20. Every `Q*` / `T*` decision that was open before this
 update is still open, except the physical identifier strategy, decided in
 `docs/adr/0001`.

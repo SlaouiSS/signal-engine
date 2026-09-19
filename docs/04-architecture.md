@@ -95,7 +95,8 @@ system (`docs/03-technical-spec.md` Sections 2, 25).
                                                           ▼
                                           ┌───────────────────────────┐
                                           │  LLM / embedding runtime  │
-                                          │  (Ollama initially;       │
+                                          │  (NVIDIA Build for LLM,   │
+                                          │   Ollama for embeddings;  │
                                           │   replaceable)            │
                                           └───────────────────────────┘
 ```
@@ -197,10 +198,11 @@ own**, and **how it communicates**. This restates and organizes
   runtime (`docs/03-technical-spec.md` Section 5.2).
 - **Must not own:** business logic, provenance, or persistence.
 - **Communicates:** through the LLM provider abstraction only (Section 9 below);
-  initially **Ollama** running `gpt-oss:20b`, never referenced by name outside
-  configuration and the provider adapter (`docs/03-technical-spec.md`
-  Section 3.6, 9.1). The current/default generative provider is **NVIDIA
-  Build** (`AGENTS_LLM_PROVIDER=nvidia`) — the final provider decision
+  never referenced by name outside configuration and the provider adapter
+  (`docs/03-technical-spec.md` Section 3.6, 9.1). *Historically* — an earlier
+  architecture state, not the current default — the initial generative provider
+  was **Ollama** running `gpt-oss:20b`. The current/default generative provider
+  is **NVIDIA Build** (`AGENTS_LLM_PROVIDER=nvidia`) — the final provider decision
   (`docs/adr/0006-ai-java-python-foundation.md`); Ollama remains in use for
   embeddings (`embeddinggemma`) and as a selectable generative fallback. Either
   way, the provider is reached only through this same abstraction — no
