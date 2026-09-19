@@ -5,6 +5,7 @@ import EmptyState from '../ui/EmptyState';
 import ErrorState from '../ui/ErrorState';
 import LoadingState from '../ui/LoadingState';
 import PageHeader from '../ui/PageHeader';
+import PageInfoPanel from '../ui/PageInfoPanel';
 import StatusBadge from '../ui/StatusBadge';
 import { formatTimestamp } from '../ui/formatTimestamp';
 import { useActivity } from './useActivity';
@@ -25,6 +26,11 @@ export default function ActivityPage() {
         id="activity-heading"
         title="Activity"
         description="What Signal Engine has done, newest first."
+      />
+      <PageInfoPanel
+        whatItIs="A read-only list of recent operations Signal Engine has recorded, such as collecting and processing information."
+        whyItExists="It lets you check what the system has been doing and whether any step failed."
+        whatToExpect="Recent records with time, category, outcome, message and source. This is an operational log, not a full monitoring dashboard."
       />
 
       {state.status === 'loading' && <LoadingState label="Loading activity…" />}

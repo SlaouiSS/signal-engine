@@ -6,6 +6,7 @@ import Card from '../ui/Card';
 import ErrorState from '../ui/ErrorState';
 import LoadingState from '../ui/LoadingState';
 import PageHeader from '../ui/PageHeader';
+import PageInfoPanel from '../ui/PageInfoPanel';
 import TextAreaField from '../ui/TextAreaField';
 import CitationItem from './CitationItem';
 import { useAskQuestion } from './useAskQuestion';
@@ -43,6 +44,11 @@ export default function QaPage() {
         id="qa-heading"
         title="Q&A"
         description="Ask a question and get a source-grounded answer from the knowledge base."
+      />
+      <PageInfoPanel
+        whatItIs="Q&A answers a question using only the information in the indexed knowledge base. It is not a general-purpose chatbot."
+        whyItExists="It gives you an answer grounded in what Signal Engine has collected, instead of an answer from the model's own knowledge."
+        whatToExpect="An answer with citations to its sources. If the knowledge base does not contain enough information, Signal Engine says so."
       />
 
       <Card>

@@ -8,6 +8,7 @@ import EmptyState from '../ui/EmptyState';
 import ErrorState from '../ui/ErrorState';
 import LoadingState from '../ui/LoadingState';
 import PageHeader from '../ui/PageHeader';
+import PageInfoPanel from '../ui/PageInfoPanel';
 import StatusBadge from '../ui/StatusBadge';
 import { formatTimestamp } from '../ui/formatTimestamp';
 import SignalDetail from './SignalDetail';
@@ -57,6 +58,11 @@ export default function SignalsPage() {
         id="signals-heading"
         title="Signals"
         description="Notable developments Signal Engine has surfaced, newest first."
+      />
+      <PageInfoPanel
+        whatItIs="A signal is a piece of information that is relevant to your interests and/or important enough to bring to your attention."
+        whyItExists="Signals are produced after collected information has been processed, so you can review what matters without going through everything."
+        whatToExpect="A list of signals. Open one to see why it matters and its original source, and to mark it relevant or not relevant."
       />
 
       {state.status === 'loading' && <LoadingState label="Loading signals…" />}

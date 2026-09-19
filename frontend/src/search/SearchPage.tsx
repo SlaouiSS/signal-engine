@@ -7,6 +7,7 @@ import EmptyState from '../ui/EmptyState';
 import ErrorState from '../ui/ErrorState';
 import LoadingState from '../ui/LoadingState';
 import PageHeader from '../ui/PageHeader';
+import PageInfoPanel from '../ui/PageInfoPanel';
 import TextField from '../ui/TextField';
 import SearchResultItem from './SearchResultItem';
 import { useSearch } from './useSearch';
@@ -43,6 +44,11 @@ export default function SearchPage() {
         id="search-heading"
         title="Search"
         description="Semantic search over everything Signal Engine has collected."
+      />
+      <PageInfoPanel
+        whatItIs="Search looks through the knowledge base Signal Engine has processed and indexed. It does not search the open web."
+        whyItExists="It helps you find previously collected information by meaning, not only by exact words."
+        whatToExpect="Matching passages with their provenance, so you can follow each one back to its original source."
       />
 
       <Card>

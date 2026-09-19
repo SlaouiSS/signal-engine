@@ -8,6 +8,7 @@ import ErrorMessage from '../ui/ErrorMessage';
 import ErrorState from '../ui/ErrorState';
 import LoadingState from '../ui/LoadingState';
 import PageHeader from '../ui/PageHeader';
+import PageInfoPanel from '../ui/PageInfoPanel';
 import StatusBadge from '../ui/StatusBadge';
 import InterestForm from './InterestForm';
 import { useAreasOfInterest, type AreaOfInterest } from './useAreasOfInterest';
@@ -92,6 +93,11 @@ export default function InterestsPage() {
         id="interests-heading"
         title="Interests"
         description="What Signal Engine watches for within each area of interest."
+      />
+      <PageInfoPanel
+        whatItIs="Interests are the topics you care about, grouped under fixed areas of interest."
+        whyItExists="Signal Engine compares collected information with your enabled interests when it assesses relevance."
+        whatToExpect="Add, edit, enable or disable interests within each area."
       />
       <ErrorMessage error={toggleError} />
 
