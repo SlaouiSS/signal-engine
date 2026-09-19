@@ -8,6 +8,7 @@ import ErrorMessage from '../ui/ErrorMessage';
 import ErrorState from '../ui/ErrorState';
 import LoadingState from '../ui/LoadingState';
 import PageHeader from '../ui/PageHeader';
+import PageInfoPanel from '../ui/PageInfoPanel';
 import StatusBadge from '../ui/StatusBadge';
 import SourceForm from './SourceForm';
 import { useSources, type Source } from './useSources';
@@ -68,6 +69,11 @@ export default function SourcesPage() {
             </Button>
           )
         }
+      />
+      <PageInfoPanel
+        whatItIs="Sources are the websites and feeds Signal Engine collects information from."
+        whyItExists="Only enabled sources feed the processing pipeline, so this list controls what information can enter Signal Engine."
+        whatToExpect="Add, edit, enable or disable a source. Collection is not scheduled, so sources are not monitored continuously."
       />
 
       {formState.mode === 'create' && (

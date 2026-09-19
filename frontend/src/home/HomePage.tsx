@@ -8,6 +8,7 @@ import EmptyState from '../ui/EmptyState';
 import ErrorState from '../ui/ErrorState';
 import LoadingState from '../ui/LoadingState';
 import PageHeader from '../ui/PageHeader';
+import PageInfoPanel from '../ui/PageInfoPanel';
 import HomeRelevantInformationCard from './HomeRelevantInformationCard';
 import { useRecentRelevantInformation } from './useRecentRelevantInformation';
 
@@ -62,6 +63,11 @@ export default function HomePage() {
         id="home-heading"
         title="Home"
         description="What's new and worth knowing right now."
+      />
+      <PageInfoPanel
+        whatItIs="A quick view of recent information that Signal Engine has identified as relevant to your interests."
+        whyItExists="It lets you see what is new without searching or opening each source."
+        whatToExpect="Recent relevant information, newest first. A record that has become a signal is highlighted with a Signal badge."
       />
 
       {state.status === 'loading' && <LoadingState label="Loading recent information…" />}
