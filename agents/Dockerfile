@@ -1,7 +1,7 @@
 # Signal Engine AI capability service image (docs/03-technical-spec.md Section 4.10, 17.2).
 # Python 3.13 (D3), dependencies installed from the committed uv.lock.
 
-FROM python:3.13-slim AS runtime
+FROM python:3.14-slim AS runtime
 WORKDIR /app
 
 # uv is the single Python project/dependency manager (D21). Pinned to an explicit
