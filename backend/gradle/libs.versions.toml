@@ -16,12 +16,12 @@ springDependencyManagement = "1.1.7"
 spotless = "8.10.2"
 
 # Libraries not managed by the Spring Boot BOM
-springdocOpenApi = "3.1.0"
+springdocOpenApi = "3.1.1"
 # Semantic chunking for RAG indexing (docs/07-rag.md Section 21;
 # docs/adr/0010-indexing-foundation-and-semantic-chunking.md). Apache-2.0, Java 21,
 # zero runtime dependencies. Only the -core module is used; the -spring-ai,
 # -tika and -unstructured adapter modules are deliberately not pulled in.
-semanticChunker = "1.0.0"
+semanticChunker = "1.0.2"
 # Deterministic HTML parsing for content extraction (docs/08-ingestion.md Section 6;
 # docs/03-technical-spec.md Section 10.1). jsoup is a mature (since 2009), MIT-licensed,
 # actively maintained, dependency-free Java HTML parser — a static DOM parser only, it
