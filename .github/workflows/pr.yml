@@ -154,7 +154,7 @@ jobs:
       - name: Container images are pinned (no floating tags)
         run: sh scripts/check-container-image-pins.sh
       - name: Trivy filesystem scan
-        uses: aquasecurity/trivy-action@v0.35.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: .
