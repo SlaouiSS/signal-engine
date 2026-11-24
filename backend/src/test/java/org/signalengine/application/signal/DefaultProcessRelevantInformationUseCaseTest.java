@@ -21,6 +21,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.signalengine.application.InvalidInputException;
+import org.signalengine.application.ai.AiCapabilityFailureException;
 import org.signalengine.application.ai.AiError;
 import org.signalengine.application.persistence.ActivityRecordRepository;
 import org.signalengine.application.persistence.AreaOfInterestRepository;
@@ -193,6 +194,235 @@ class DefaultProcessRelevantInformationUseCaseTest {
             org.signalengine.rag.RagComponentType.INDEXING_PIPELINE),
         List.of(),
         Map.of());
+  }
+
+  private static AiError suspended() {
+    return new AiError(
+        AiError.CAPABILITY_SUSPENDED_CODE,
+        AiError.SUSPENDED_CATEGORY,
+        true,
+        "capability 'relevance' is suspended until 2026-04-01T09:15:00Z",
+        UUID.randomUUID(),
+        Map.of("providerStatus", 404));
+  }
+
+  /** The suspended failure of the very request that made the capability suspect. */
+  private static AiError suspendedByRejectingThisRequest() {
+    return new AiError(
+        AiError.CAPABILITY_SUSPENDED_CODE,
+        AiError.SUSPENDED_CATEGORY,
+        true,
+        "capability 'relevance' is suspended until 2026-04-01T09:15:00Z",
+        UUID.randomUUID(),
+        Map.of(AiError.REJECTED_THIS_REQUEST_DETAIL, true));
+  }
+
+  /** A second Relevant Information record whose anchor is also awaiting relevance assessment. */
+  private UUID addAnotherPendingRecord() {
+    RelevantInformation other =
+        relevantInformation.put(
+            new RelevantInformation(UUID.randomUUID(), null, Set.of(), Set.of(), NOW, NOW));
+    rawItems.put(
+        new RawInformationItem(
+            UUID.randomUUID(),
+            sourceId,
+            null,
+            "other-hash",
+            "https://ex.test/other",
+            "raw",
+            "Another article.",
+            null,
+            null,
+            NOW,
+            ProcessingState.deduplicated(NOW),
+            other.id(),
+            NOW,
+            NOW));
+    return other.id();
+  }
+
+  private UUID addPendingRecordInState(ProcessingState state) {
+    RelevantInformation other =
+        relevantInformation.put(
+            new RelevantInformation(UUID.randomUUID(), null, Set.of(), Set.of(), NOW, NOW));
+    rawItems.put(
+        new RawInformationItem(
+            UUID.randomUUID(),
+            sourceId,
+            null,
+            "state-hash-" + UUID.randomUUID(),
+            "https://ex.test/state",
+            "raw",
+            "An article already past relevance.",
+            null,
+            null,
+            NOW,
+            state,
+            other.id(),
+            NOW,
+            NOW));
+    return other.id();
+  }
+
+  private static java.time.Clock advancingClockFrom(Instant start) {
+    return new java.time.Clock() {
+      private Instant now = start;
+
+      @Override
+      public Instant instant() {
+        now = now.plusSeconds(1);
+        return now;
+      }
+
+      @Override
+      public java.time.ZoneId getZone() {
+        return ZoneOffset.UTC;
+      }
+
+      @Override
+      public java.time.Clock withZone(java.time.ZoneId zone) {
+        return this;
+      }
+    };
+  }
+
+  private DefaultProcessRelevantInformationUseCase useCaseWith(
+      java.time.Clock clock, int batchLimit) {
+    return new DefaultProcessRelevantInformationUseCase(
+        relevantInformation,
+        rawItems,
+        signals,
+        summaries,
+        sources,
+        areas,
+        interests,
+        relevanceAssessor,
+        importanceAssessor,
+        summaryGenerator,
+        knowledgeBaseIndexer,
+        activity,
+        new InMemoryPipelineRepositories.ImmediateUnitOfWork(),
+        clock,
+        batchLimit);
+  }
+
+  // === Suspended capability and queue fairness =====================
+
+  @Test
+  void aSuspendedCapabilityDefersTheItemWithoutRecordingAPerItemFailure() {
+    relevanceReturns(new RelevanceVerdict.AssessmentUnavailable(suspended()));
+
+    ProcessingReport report = useCase.process(riId);
+
+    assertThat(report.outcome()).isEqualTo(Outcome.SUSPENDED);
+    assertThat(anchorState()).isEqualTo(ProcessingState.DEDUPLICATED);
+    verifyNoInteractions(activity);
+    verifyNoInteractions(knowledgeBaseIndexer);
+  }
+
+  @Test
+  void aSuspendedCapabilityDoesNotStopTheRecordsThatWaitForAnotherCapability() {
+    // The first record needs the (suspended) relevance capability; the second is already relevant
+    // and only needs importance assessment, which is a different capability.
+    UUID waitingForImportance =
+        addPendingRecordInState(ProcessingState.relevant(NOW.plusSeconds(60)));
+    relevanceReturns(new RelevanceVerdict.AssessmentUnavailable(suspended()));
+    importanceReturns(new ImportanceVerdict.Assessed(false, "routine"));
+
+    List<ProcessingReport> reports = useCase.processPending();
+
+    assertThat(reports).hasSize(2);
+    assertThat(reports)
+        .anySatisfy(
+            report -> {
+              assertThat(report.relevantInformationId()).isEqualTo(riId);
+              assertThat(report.outcome()).isEqualTo(Outcome.SUSPENDED);
+            })
+        .anySatisfy(
+            report -> {
+              assertThat(report.relevantInformationId()).isEqualTo(waitingForImportance);
+              assertThat(report.outcome()).isEqualTo(Outcome.RELEVANT_NOT_IMPORTANT);
+            });
+    assertThat(anchorState())
+        .as("the suspended record is untouched")
+        .isEqualTo(ProcessingState.DEDUPLICATED);
+  }
+
+  @Test
+  void theSuspensionIsSummarisedByASingleFailureActivityRecordPerSweep() {
+    addAnotherPendingRecord();
+    relevanceReturns(new RelevanceVerdict.AssessmentUnavailable(suspended()));
+
+    List<ProcessingReport> reports = useCase.processPending();
+
+    assertThat(reports).extracting(ProcessingReport::outcome).containsOnly(Outcome.SUSPENDED);
+    assertThat(savedFailureMessage()).contains("2 relevant information record(s)", "suspended");
+    verify(activity, org.mockito.Mockito.times(1)).save(any());
+  }
+
+  @Test
+  void aRecordWhoseRequestMadeTheCapabilitySuspectIsMovedBehindTheOthers() {
+    var useCaseWithAdvancingClock = useCaseWith(advancingClockFrom(NOW), 50);
+    relevanceReturns(new RelevanceVerdict.AssessmentUnavailable(suspendedByRejectingThisRequest()));
+    Instant before = rawItems.findById(anchorId).orElseThrow().processingState().updatedAt();
+
+    useCaseWithAdvancingClock.processPending();
+
+    Instant after = rawItems.findById(anchorId).orElseThrow().processingState().updatedAt();
+    assertThat(after).as("behind the others: a different record probes next").isAfter(before);
+    assertThat(anchorState()).isEqualTo(ProcessingState.DEDUPLICATED);
+  }
+
+  @Test
+  void aRecordThatWasOnlySkippedBecauseTheCapabilityIsSuspendedKeepsItsPlace() {
+    var useCaseWithAdvancingClock = useCaseWith(advancingClockFrom(NOW), 50);
+    relevanceReturns(new RelevanceVerdict.AssessmentUnavailable(suspended()));
+    Instant before = rawItems.findById(anchorId).orElseThrow().processingState().updatedAt();
+
+    useCaseWithAdvancingClock.processPending();
+
+    Instant after = rawItems.findById(anchorId).orElseThrow().processingState().updatedAt();
+    assertThat(after).as("not suspect, so not moved").isEqualTo(before);
+  }
+
+  @Test
+  void anIndexingFailureCausedByASuspendedCapabilityIsNotRecordedAsAFailureOfTheItem() {
+    relevanceReturns(
+        new RelevanceVerdict.Assessed(true, "relevant", Set.of("LAW_AND_REGULATION"), Set.of()));
+    importanceReturns(new ImportanceVerdict.Assessed(false, "routine"));
+    when(knowledgeBaseIndexer.index(any(), any()))
+        .thenThrow(
+            new EmbeddingException(
+                "embed suspended", new AiCapabilityFailureException(suspended())));
+
+    ProcessingReport report = useCase.process(riId);
+
+    assertThat(report.outcome()).isEqualTo(Outcome.RELEVANT_NOT_IMPORTANT);
+    verify(activity, org.mockito.Mockito.atLeastOnce())
+        .save(
+            org.mockito.ArgumentMatchers.argThat(
+                record -> !record.message().contains("indexing failed")));
+    verify(activity, never())
+        .save(
+            org.mockito.ArgumentMatchers.argThat(
+                record -> record.message().contains("indexing failed")));
+  }
+
+  @Test
+  void aTransientFailureMovesTheItemBehindTheOnesNotYetAttempted() {
+    UUID otherRecordId = addAnotherPendingRecord();
+    var oneItemPerSweep = useCaseWith(advancingClockFrom(NOW), 1);
+    relevanceReturns(new RelevanceVerdict.AssessmentUnavailable(retryable()));
+
+    List<ProcessingReport> firstSweep = oneItemPerSweep.processPending();
+    List<ProcessingReport> secondSweep = oneItemPerSweep.processPending();
+
+    assertThat(firstSweep)
+        .singleElement()
+        .satisfies(r -> assertThat(r.relevantInformationId()).isEqualTo(riId));
+    assertThat(secondSweep)
+        .singleElement()
+        .satisfies(r -> assertThat(r.relevantInformationId()).isEqualTo(otherRecordId));
   }
 
   // === Relevance ===================================================

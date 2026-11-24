@@ -46,12 +46,12 @@ interface RawInformationItemCrudRepository extends ListCrudRepository<RawInforma
       FROM (
         SELECT *,
                ROW_NUMBER() OVER (
-                 PARTITION BY source_id ORDER BY collected_at ASC, id ASC
+                 PARTITION BY source_id ORDER BY processing_updated_at ASC, id ASC
                ) AS source_rank
         FROM raw_information_item
         WHERE processing_state = :processingState
       ) ranked_by_source
-      ORDER BY source_rank ASC, collected_at ASC, id ASC
+      ORDER BY source_rank ASC, processing_updated_at ASC, id ASC
       LIMIT :limit
       """)
   List<RawInformationItemRow> findByProcessingState(String processingState, int limit);
@@ -60,7 +60,7 @@ interface RawInformationItemCrudRepository extends ListCrudRepository<RawInforma
       """
       SELECT * FROM raw_information_item
       WHERE processing_state IN (:processingStates)
-      ORDER BY collected_at ASC
+      ORDER BY processing_updated_at ASC, id ASC
       LIMIT :limit
       """)
   List<RawInformationItemRow> findByProcessingStateIn(List<String> processingStates, int limit);
@@ -101,4 +101,15 @@ interface RawInformationItemCrudRepository extends ListCrudRepository<RawInforma
       Boolean failureRetryable,
       Instant updatedAt,
       UUID relevantInformationId);
+
+  /** Moves only the last-attempt time of an item still in {@code expectedState}. */
+  @Modifying
+  @Query(
+      """
+      UPDATE raw_information_item
+      SET processing_updated_at = :attemptedAt,
+          updated_at            = :attemptedAt
+      WHERE id = :id AND processing_state = :expectedState
+      """)
+  boolean recordRetryableAttempt(UUID id, String expectedState, Instant attemptedAt);
 }

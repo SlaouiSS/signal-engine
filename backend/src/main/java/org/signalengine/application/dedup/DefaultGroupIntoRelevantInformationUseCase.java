@@ -1,6 +1,7 @@
 package org.signalengine.application.dedup;
 
 import java.time.Clock;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -111,13 +112,34 @@ public final class DefaultGroupIntoRelevantInformationUseCase
     };
   }
 
+  /**
+   * Groups one bounded page of normalized items. An item that needs the suspended near-duplicate
+   * capability is left untouched (and moved behind the others); it costs one lookup, not a call, so
+   * the sweep carries on — an item with no candidate to compare against needs no assessment at all
+   * and still progresses (docs/adr/0018-pipeline-reliability.md). One activity record summarises
+   * the suspension.
+   */
   @Override
   public List<GroupingReport> groupNormalizedRawInformationItems() {
-    return rawInformationItemRepository
-        .findByProcessingState(ProcessingState.NORMALIZED, batchLimit)
-        .stream()
-        .map(item -> groupOneIsolatingFailure(item.id()))
-        .toList();
+    List<GroupingReport> reports = new ArrayList<>();
+    for (RawInformationItem item :
+        rawInformationItemRepository.findByProcessingState(
+            ProcessingState.NORMALIZED, batchLimit)) {
+      reports.add(groupOneIsolatingFailure(item.id()));
+    }
+    List<GroupingReport> suspended =
+        reports.stream()
+            .filter(report -> report.outcome() == GroupingReport.Outcome.SUSPENDED)
+            .toList();
+    if (!suspended.isEmpty()) {
+      recordActivity(
+          null,
+          "failure",
+          suspended.size()
+              + " item(s) wait for a suspended near-duplicate capability: "
+              + suspended.get(0).detail());
+    }
+    return List.copyOf(reports);
   }
 
   private GroupingReport groupOneIsolatingFailure(UUID rawInformationItemId) {
@@ -194,11 +216,22 @@ public final class DefaultGroupIntoRelevantInformationUseCase
 
   private GroupingReport handleFailure(RawInformationItem item, AssessmentUnavailable unavailable) {
     var error = unavailable.error();
+    if (error.capabilitySuspended()) {
+      if (error.suspendedByRejectingThisRequest()) {
+        // This item may be the bad one: behind the others, so a different item probes next time.
+        rawInformationItemRepository.recordRetryableAttempt(
+            item.id(), ProcessingState.NORMALIZED, clock.instant());
+      }
+      return GroupingReport.suspended(item.id(), error.message());
+    }
     recordActivity(
         item.id(),
         "failure",
         "near-duplicate assessment failed (" + error.code() + "): " + error.message());
     if (error.retryable()) {
+      // Behind the items not attempted yet, so a transiently failing item cannot starve the queue.
+      rawInformationItemRepository.recordRetryableAttempt(
+          item.id(), ProcessingState.NORMALIZED, clock.instant());
       return GroupingReport.assessmentFailed(item.id(), "retryable: " + error.code());
     }
     unitOfWork.inTransaction(

@@ -100,6 +100,7 @@ final class InMemoryPipelineRepositories {
     public List<RawInformationItem> findByProcessingState(String processingState, int limit) {
       return byId.values().stream()
           .filter(i -> processingState.equals(i.processingState().state()))
+          .sorted(Comparator.comparing(i -> i.processingState().updatedAt()))
           .limit(limit)
           .toList();
     }
@@ -109,6 +110,7 @@ final class InMemoryPipelineRepositories {
         List<String> processingStates, int limit) {
       return byId.values().stream()
           .filter(i -> processingStates.contains(i.processingState().state()))
+          .sorted(Comparator.comparing(i -> i.processingState().updatedAt()))
           .limit(limit)
           .toList();
     }
@@ -145,6 +147,39 @@ final class InMemoryPipelineRepositories {
               relevantInformationId,
               current.createdAt(),
               Instant.now()));
+      return true;
+    }
+
+    @Override
+    public boolean recordRetryableAttempt(
+        UUID rawInformationItemId, String expectedState, Instant attemptedAt) {
+      RawInformationItem current = byId.get(rawInformationItemId);
+      if (current == null || !expectedState.equals(current.processingState().state())) {
+        return false;
+      }
+      ProcessingState previous = current.processingState();
+      byId.put(
+          rawInformationItemId,
+          new RawInformationItem(
+              current.id(),
+              current.sourceId(),
+              current.sourceProvidedId(),
+              current.contentHash(),
+              current.originalUrl(),
+              current.rawContent(),
+              current.normalizedContent(),
+              current.language(),
+              current.publishedAt(),
+              current.collectedAt(),
+              new ProcessingState(
+                  previous.state(),
+                  previous.failedStage(),
+                  previous.failureReason(),
+                  previous.failureRetryable(),
+                  attemptedAt),
+              current.relevantInformationId(),
+              current.createdAt(),
+              current.updatedAt()));
       return true;
     }
   }

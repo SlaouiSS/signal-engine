@@ -32,7 +32,8 @@ class SchemaMigrationIntegrationTest extends AbstractPersistenceIntegrationTest 
           "activity_record",
           "summary",
           "rag_passage",
-          "rag_passage_embedding");
+          "rag_passage_embedding",
+          "ai_capability_suspension");
 
   @Autowired private JdbcClient jdbcClient;
 
@@ -55,7 +56,7 @@ class SchemaMigrationIntegrationTest extends AbstractPersistenceIntegrationTest 
 
     assertThat(history)
         .extracting(MigrationRow::version)
-        .containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11");
+        .containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12");
     assertThat(history).allMatch(MigrationRow::success, "every migration applied successfully");
   }
 
