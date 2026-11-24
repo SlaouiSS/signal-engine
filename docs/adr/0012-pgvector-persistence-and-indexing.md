@@ -97,6 +97,16 @@ embedding model identity. The store upserts on those natural keys:
 Nothing is silently deleted. Passage ids are the Task 8.2 deterministic ids, not
 random UUIDs.
 
+**Updated (2026-11-24, `docs/adr/0018-pipeline-reliability.md`):** the store no longer saves passages
+one at a time. Indexing a content is claim, prepare (chunk and embed, outside any transaction),
+then **replace atomically**: in one transaction every passage and embedding is upserted, the passages
+of the *same content and chunker configuration* that the new result no longer contains are removed
+(their embeddings go with them by cascade), and a completion marker is written
+(`rag_content_index`, migration V13). Passages of another chunker configuration, and embeddings of
+another model, still coexist and are still never deleted. Retrieval returns, for a content with a
+marker, only the passages of the marker's chunker configuration, so coexistence no longer surfaces
+duplicates. The per-passage failure tally below is gone: the operation is all or nothing.
+
 ### 7. Embedding model replacement
 
 `EmbeddingResult` was extended (a concrete incompatibility discovered by this
@@ -133,8 +143,10 @@ committed.
   Section 16, `docs/03-technical-spec.md` Section 24, and `docs/11-roadmap.md`
   Phase 7 updated.
 - No new dependency. `JdbcClient` and Jackson 3 are already on the classpath.
-- Nothing in the backend indexes Signal Engine content automatically &mdash; no
-  scheduler, no use case, no API. A focused integration test proves the bridge.
+- Nothing in the backend indexed Signal Engine content automatically when this ADR was written
+  &mdash; no scheduler, no use case, no API (superseded: the index is populated once relevance is
+  confirmed, and repaired by reconciliation, `docs/adr/0018-pipeline-reliability.md`). A focused
+  integration test proves the bridge.
 
 ## Trade-offs
 
