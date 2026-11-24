@@ -41,6 +41,7 @@ import org.signalengine.rag.embedding.EmbeddingRequest;
 import org.signalengine.rag.embedding.EmbeddingResult;
 import org.signalengine.rag.indexing.IndexedPassageStore;
 import org.signalengine.rag.indexing.IndexingPipeline;
+import org.signalengine.rag.indexing.IndexingReport;
 import org.signalengine.rag.indexing.StagedIndexingPipeline;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -100,7 +101,18 @@ class SignalPipelineIntegrationTest extends AbstractPersistenceIntegrationTest {
             .embeddingModel(STUB_EMBEDDING_MODEL)
             .store(indexedPassageStore)
             .build();
-    return (item, source) -> pipeline.index(SignalEngineIndexableContent.from(item, source));
+    return new KnowledgeBaseIndexer() {
+      @Override
+      public IndexingReport index(RawInformationItem item, Source source) {
+        return pipeline.index(SignalEngineIndexableContent.from(item, source));
+      }
+
+      @Override
+      public java.util.List<UUID> findItemIdsAwaitingIndexing(
+          Instant now, int maxFailedAttempts, int limit) {
+        return java.util.List.of();
+      }
+    };
   }
 
   private ProcessRelevantInformationUseCase useCase() {

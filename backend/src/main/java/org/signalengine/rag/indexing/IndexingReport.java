@@ -8,9 +8,11 @@ import org.signalengine.rag.ComponentDescriptor;
  * What an {@link IndexingPipeline} did with one {@link IndexableContent}: how many passages it
  * produced, embedded and persisted, and how many were skipped or failed.
  *
- * <p>Failures are explicit here, never swallowed. {@code embedded} is {@code 0} and an exception
- * propagates when the embedding call itself fails; a per-passage persistence failure is counted in
- * {@code failed} and described in {@code notes}, and the rest of the passages are still attempted.
+ * <p>Failures are explicit here, never swallowed. An exception propagates when chunking, embedding
+ * or the atomic replacement fails: nothing is stored then, so a report never describes a partial
+ * result. {@code skipped} is {@code 1} when nothing was done because another run holds the content,
+ * or it is already completely indexed for this chunker configuration, or the run's claim was
+ * superseded (docs/adr/0018-pipeline-reliability.md).
  *
  * @param contentId the content that was indexed; never blank
  * @param passages the number of passages chunking produced; never negative
@@ -57,9 +59,16 @@ public record IndexingReport(
     }
   }
 
-  /** Every passage was embedded and stored, nothing skipped or failed. */
+  /**
+   * Every passage was embedded and stored, nothing skipped or failed — and there was at least one:
+   * a content with no passage is not indexed, it has no completion marker.
+   */
   public boolean fullyIndexed() {
-    return failed == 0 && skipped == 0 && persisted == passages && embedded == passages;
+    return passages > 0
+        && failed == 0
+        && skipped == 0
+        && persisted == passages
+        && embedded == passages;
   }
 
   private static void requireNonNegative(int value, String field) {

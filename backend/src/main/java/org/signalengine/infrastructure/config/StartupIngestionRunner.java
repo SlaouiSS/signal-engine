@@ -9,8 +9,10 @@ import org.signalengine.application.dedup.GroupIntoRelevantInformationUseCase;
 import org.signalengine.application.dedup.GroupingReport;
 import org.signalengine.application.ingestion.CollectFromSourceUseCase;
 import org.signalengine.application.ingestion.CollectionReport;
+import org.signalengine.application.signal.IndexReconciliationReport;
 import org.signalengine.application.signal.ProcessRelevantInformationUseCase;
 import org.signalengine.application.signal.ProcessingReport;
+import org.signalengine.application.signal.ReconcileKnowledgeBaseIndexUseCase;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
@@ -18,9 +20,11 @@ import org.springframework.boot.ApplicationRunner;
 
 /**
  * Runs the ingestion pipeline once, in the background, right after the application has finished
- * starting — collect &rarr; group &rarr; process, over whatever sources are currently configured
- * and enabled (docs/08-ingestion.md Section 16; docs/11-roadmap.md Phase 4). Without this, a fresh
- * environment stays empty forever: nothing in the running application ever called these use cases.
+ * starting — collect &rarr; group &rarr; process &rarr; reconcile the knowledge base index, over
+ * whatever sources are currently configured and enabled (docs/08-ingestion.md Section 16;
+ * docs/11-roadmap.md Phase 4). Without this, a fresh environment stays empty forever: nothing in
+ * the running application ever called these use cases. The last stage repairs any indexing that did
+ * not complete (docs/adr/0018-pipeline-reliability.md).
  *
  * <p><strong>Not a scheduler.</strong> This fires exactly once per process start — the recurring
  * collection cadence (Q9) and whether a manual "collect now" trigger exists (Q8, T17) remain open
@@ -29,8 +33,8 @@ import org.springframework.boot.ApplicationRunner;
  * <p><strong>Idempotent by construction, not by anything added here.</strong> Each stage already
  * guarantees, on its own, that re-running it (e.g. after a container restart) does not double
  * collect, double group, or double process — see {@link CollectFromSourceUseCase}, {@link
- * GroupIntoRelevantInformationUseCase}, and {@link ProcessRelevantInformationUseCase}. This class
- * adds no duplicate-prevention of its own.
+ * GroupIntoRelevantInformationUseCase}, {@link ProcessRelevantInformationUseCase} and {@link
+ * ReconcileKnowledgeBaseIndexUseCase}. This class adds no duplicate-prevention of its own.
  *
  * <p><strong>Runs on {@code executor}, never on the {@link ApplicationRunner} thread.</strong> A
  * slow or unreachable source, or an unavailable AI capability, must never delay Spring Boot's own
@@ -45,6 +49,7 @@ class StartupIngestionRunner implements ApplicationRunner {
   private final CollectFromSourceUseCase collectFromSource;
   private final GroupIntoRelevantInformationUseCase groupIntoRelevantInformation;
   private final ProcessRelevantInformationUseCase processRelevantInformation;
+  private final ReconcileKnowledgeBaseIndexUseCase reconcileKnowledgeBaseIndex;
   private final Executor executor;
   private final Clock clock;
 
@@ -52,11 +57,13 @@ class StartupIngestionRunner implements ApplicationRunner {
       CollectFromSourceUseCase collectFromSource,
       GroupIntoRelevantInformationUseCase groupIntoRelevantInformation,
       ProcessRelevantInformationUseCase processRelevantInformation,
+      ReconcileKnowledgeBaseIndexUseCase reconcileKnowledgeBaseIndex,
       Executor executor,
       Clock clock) {
     this.collectFromSource = collectFromSource;
     this.groupIntoRelevantInformation = groupIntoRelevantInformation;
     this.processRelevantInformation = processRelevantInformation;
+    this.reconcileKnowledgeBaseIndex = reconcileKnowledgeBaseIndex;
     this.executor = executor;
     this.clock = clock;
   }
@@ -80,13 +87,16 @@ class StartupIngestionRunner implements ApplicationRunner {
       List<GroupingReport> grouped =
           groupIntoRelevantInformation.groupNormalizedRawInformationItems();
       List<ProcessingReport> processed = processRelevantInformation.processPending();
+      List<IndexReconciliationReport> reconciled = reconcileKnowledgeBaseIndex.reconcilePending();
       log.info(
           "Startup ingestion run: completed in {} — {} source(s) collected, {} item(s) grouped, "
-              + "{} relevant information record(s) processed",
+              + "{} relevant information record(s) processed, {} item(s) reconciled in the "
+              + "knowledge base index",
           Duration.between(startedAt, clock.instant()),
           collected.size(),
           grouped.size(),
-          processed.size());
+          processed.size(),
+          reconciled.size());
     } catch (RuntimeException failure) {
       log.error(
           "Startup ingestion run: failed after {}",
