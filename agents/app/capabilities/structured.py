@@ -19,7 +19,7 @@ from collections.abc import Callable
 
 from pydantic import BaseModel, ValidationError
 
-from app.errors import OutputInvalid, ProviderTimeout, ProviderUnavailable
+from app.errors import OutputInvalid, to_capability_error
 from app.prompts import Prompt, RenderedPrompt
 from app.providers.base import GenerationRequest, GenerationResult, LlmProvider, ProviderError
 
@@ -87,9 +87,7 @@ def _generate(
             )
         )
     except ProviderError as provider_error:
-        if provider_error.timed_out:
-            raise ProviderTimeout(provider_error.message) from provider_error
-        raise ProviderUnavailable(provider_error.message) from provider_error
+        raise to_capability_error(provider_error) from provider_error
 
 
 def _parse[ResultModelT: BaseModel](

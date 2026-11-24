@@ -37,15 +37,50 @@ class GenerationResult:
     duration_millis: int
 
 
+# HTTP statuses that mean the provider *configuration* is wrong — bad or missing credentials,
+# exhausted account, a model or endpoint that does not exist (any more). Retrying changes nothing
+# until someone fixes the configuration, and it affects every request, not one
+# (docs/adr/0018-pipeline-reliability.md).
+_CONFIGURATION_REJECTED_STATUSES = frozenset({401, 402, 403, 404, 410})
+# Statuses that are transient even though they are 4xx (docs/03-technical-spec.md Section 13.2:
+# only provider transport/5xx is retryable, plus the standard "try again later" statuses).
+_TRANSIENT_CLIENT_STATUSES = frozenset({408, 425, 429})
+
+
 class ProviderError(Exception):
     """The provider could not produce a result. ``retryable`` follows the
-    transport/timeout taxonomy (docs/03-technical-spec.md Section 13.1-13.2)."""
+    transport/timeout taxonomy (docs/03-technical-spec.md Section 13.1-13.2).
 
-    def __init__(self, message: str, *, retryable: bool, timed_out: bool = False) -> None:
+    ``http_status`` is set when the provider answered with an HTTP error status, and is absent
+    for timeouts and transport failures.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        retryable: bool,
+        timed_out: bool = False,
+        http_status: int | None = None,
+    ) -> None:
         super().__init__(message)
         self.message = message
         self.retryable = retryable
         self.timed_out = timed_out
+        self.http_status = http_status
+
+    @property
+    def rejects_configuration(self) -> bool:
+        """The provider refused because its configuration is wrong, not this one request."""
+        return self.http_status in _CONFIGURATION_REJECTED_STATUSES
+
+
+def http_status_error(provider_label: str, status: int) -> ProviderError:
+    """The :class:`ProviderError` for a provider that answered with an HTTP error status."""
+    retryable = status in _TRANSIENT_CLIENT_STATUSES or status >= 500
+    return ProviderError(
+        f"{provider_label} returned HTTP {status}", retryable=retryable, http_status=status
+    )
 
 
 class LlmProvider(Protocol):

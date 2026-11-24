@@ -12,6 +12,7 @@ from __future__ import annotations
 from typing import Any
 
 from app.contract import ErrorCategory
+from app.providers.base import ProviderError
 
 
 class CapabilityError(Exception):
@@ -49,12 +50,26 @@ class OutputInvalid(CapabilityError):
 
 
 class ProviderUnavailable(CapabilityError):
-    """The LLM provider could not be reached."""
+    """The LLM provider could not serve the request.
+
+    Retryable by default (provider unreachable or failing). It is not retryable when the provider
+    answered with a permanent HTTP status — see :func:`to_capability_error`.
+    """
 
     code = "AI_PROVIDER_UNAVAILABLE"
     category = ErrorCategory.PROVIDER
     retryable = True
     http_status = 503
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        details: dict[str, Any] | None = None,
+        retryable: bool = True,
+    ) -> None:
+        super().__init__(message, details=details)
+        self.retryable = retryable
 
 
 class ProviderTimeout(CapabilityError):
@@ -64,3 +79,32 @@ class ProviderTimeout(CapabilityError):
     category = ErrorCategory.TIMEOUT
     retryable = True
     http_status = 504
+
+
+def to_capability_error(provider_error: ProviderError) -> CapabilityError:
+    """The contract error for a failed provider call — the one place that mapping lives.
+
+    A permanent HTTP status keeps the ``AI_PROVIDER_UNAVAILABLE`` code but is not retryable, and
+    ``details.providerFailureScope`` tells Java whether the provider *configuration* was refused
+    (``configuration``: bad credentials, retired model — it affects every request) or only this
+    request was (``request``). Java suspends the capability only for the former
+    (docs/adr/0018-pipeline-reliability.md).
+    """
+    if provider_error.timed_out:
+        return ProviderTimeout(provider_error.message)
+    return ProviderUnavailable(
+        provider_error.message,
+        details=_provider_failure_details(provider_error),
+        retryable=provider_error.retryable,
+    )
+
+
+def _provider_failure_details(provider_error: ProviderError) -> dict[str, Any] | None:
+    if provider_error.http_status is None:
+        return None
+    details: dict[str, Any] = {"providerStatus": provider_error.http_status}
+    if not provider_error.retryable:
+        details["providerFailureScope"] = (
+            "configuration" if provider_error.rejects_configuration else "request"
+        )
+    return details

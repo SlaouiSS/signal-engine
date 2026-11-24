@@ -17,7 +17,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from app.capabilities.base import HandledResult
-from app.errors import OutputInvalid, ProviderTimeout, ProviderUnavailable, RequestInvalid
+from app.errors import OutputInvalid, RequestInvalid, to_capability_error
 from app.providers.base import EmbeddingProvider, EmbeddingRequest, ProviderError
 
 _CAPABILITY_NAME = "embed"
@@ -75,9 +75,7 @@ class EmbedCapability:
                 )
             )
         except ProviderError as provider_error:
-            if provider_error.timed_out:
-                raise ProviderTimeout(provider_error.message) from provider_error
-            raise ProviderUnavailable(provider_error.message) from provider_error
+            raise to_capability_error(provider_error) from provider_error
 
         _check_well_formed(embedding.vectors, expected_count=len(texts))
 

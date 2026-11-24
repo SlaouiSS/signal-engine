@@ -23,6 +23,7 @@ from app.providers.base import (
     GenerationRequest,
     GenerationResult,
     ProviderError,
+    http_status_error,
 )
 
 _PROVIDER_NAME = "ollama"
@@ -57,9 +58,7 @@ def _post_json(url: str, body: dict[str, Any], timeout: float) -> httpx.Response
             f"ollama did not respond within {timeout}s", retryable=True, timed_out=True
         ) from timeout_error
     except httpx.HTTPStatusError as status_error:
-        raise ProviderError(
-            f"ollama returned HTTP {status_error.response.status_code}", retryable=True
-        ) from status_error
+        raise http_status_error("ollama", status_error.response.status_code) from status_error
     except httpx.HTTPError as transport_error:
         raise ProviderError(
             f"ollama is unreachable: {transport_error}", retryable=True
