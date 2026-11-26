@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from collections.abc import Callable
 
 from pydantic import BaseModel, ValidationError
@@ -40,14 +41,29 @@ def generate_structured[ResultModelT: BaseModel](
     timeout_seconds: float,
     extra_check: Callable[[ResultModelT], None] | None = None,
 ) -> tuple[ResultModelT, GenerationResult]:
-    """Return the validated result plus the metadata of the call that produced it."""
+    """Return the validated result plus the metadata of the call that produced it.
 
+    ``timeout_seconds`` is the budget of the whole operation, repair included, so that it stays
+    below the caller's own timeout (docs/03-technical-spec.md Section 8.5): the repair gets only
+    what the first call left.
+    """
+
+    deadline = time.monotonic() + timeout_seconds
     first = _generate(provider, prompt.system, prompt.user, timeout_seconds)
     try:
         return _parse(first.text, result_model, extra_check), first
     except _OutputRejected as first_failure:
         repair_user = repair_prompt.render(original=prompt.user, error=str(first_failure)).user
-        second = _generate(provider, prompt.system, repair_user, timeout_seconds)
+        remaining_seconds = deadline - time.monotonic()
+        if remaining_seconds <= 0:
+            raise to_capability_error(
+                ProviderError(
+                    "no time left in the operation budget to repair the model output",
+                    retryable=True,
+                    timed_out=True,
+                )
+            ) from first_failure
+        second = _generate(provider, prompt.system, repair_user, remaining_seconds)
         try:
             return _parse(second.text, result_model, extra_check), second
         except _OutputRejected as second_failure:

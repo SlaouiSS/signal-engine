@@ -7,8 +7,11 @@ needs a matching ``generate``. Capabilities never import a concrete provider
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Literal, Protocol
+from queue import Empty, Queue
+from threading import Thread
+from typing import Literal, Protocol, cast
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,6 +84,40 @@ def http_status_error(provider_label: str, status: int) -> ProviderError:
     return ProviderError(
         f"{provider_label} returned HTTP {status}", retryable=retryable, http_status=status
     )
+
+
+def call_within[ResponseT](
+    timeout_seconds: float, provider_label: str, call: Callable[[], ResponseT]
+) -> ResponseT:
+    """Run one provider call and give up after ``timeout_seconds`` of wall-clock time.
+
+    An ``httpx`` timeout bounds each phase (connect, each read...), so a provider that keeps
+    sending a little at a time can exceed it without limit. The caller must not: its answer has to
+    reach Java before Java gives up (docs/03-technical-spec.md Section 8.5). An abandoned call
+    carries on in its own daemon thread and its result is discarded; this service is stateless, so
+    nothing depends on it. A silent provider ends that thread at the per-phase timeout; one that
+    keeps trickling can keep it alive, since nothing here closes the connection.
+    """
+    results: Queue[tuple[ResponseT | None, BaseException | None]] = Queue(maxsize=1)
+
+    def run() -> None:
+        try:
+            results.put((call(), None))
+        except BaseException as failure:  # handed to the caller, which re-raises it
+            results.put((None, failure))
+
+    Thread(target=run, name=f"{provider_label}-call", daemon=True).start()
+    try:
+        response, failure = results.get(timeout=timeout_seconds)
+    except Empty as overrun:
+        raise ProviderError(
+            f"{provider_label} did not complete within {timeout_seconds:.1f}s",
+            retryable=True,
+            timed_out=True,
+        ) from overrun
+    if failure is not None:
+        raise failure
+    return cast(ResponseT, response)
 
 
 class LlmProvider(Protocol):
