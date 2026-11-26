@@ -2,6 +2,7 @@ package org.signalengine.application.signal;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -9,6 +10,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import org.signalengine.application.InvalidInputException;
+import org.signalengine.application.ai.AiCapabilityFailureException;
 import org.signalengine.application.ai.AiError;
 import org.signalengine.application.persistence.ActivityRecordRepository;
 import org.signalengine.application.persistence.AreaOfInterestRepository;
@@ -165,8 +167,39 @@ public final class DefaultProcessRelevantInformationUseCase
     }
   }
 
+  /**
+   * Processes one bounded page of pending records. A record that needs a suspended capability is
+   * left untouched (and moved behind the others); it costs one lookup, not a call, so the sweep
+   * carries on: the records that wait for <em>another</em> capability — relevance, importance and
+   * summarisation are three — still progress. One activity record summarises the suspension.
+   */
   @Override
   public List<ProcessingReport> processPending() {
+    List<ProcessingReport> reports = new ArrayList<>();
+    for (UUID relevantInformationId : pendingRelevantInformationIds()) {
+      reports.add(processOneIsolatingFailure(relevantInformationId));
+    }
+    recordSuspensionSummary(reports);
+    return List.copyOf(reports);
+  }
+
+  private void recordSuspensionSummary(List<ProcessingReport> reports) {
+    List<ProcessingReport> suspended =
+        reports.stream()
+            .filter(report -> report.outcome() == ProcessingReport.Outcome.SUSPENDED)
+            .toList();
+    if (!suspended.isEmpty()) {
+      recordActivity(
+          null,
+          null,
+          "failure",
+          suspended.size()
+              + " relevant information record(s) wait for a suspended capability: "
+              + suspended.get(0).detail());
+    }
+  }
+
+  private List<UUID> pendingRelevantInformationIds() {
     return rawInformationItemRepository
         .findByProcessingStateIn(
             List.of(
@@ -178,7 +211,6 @@ public final class DefaultProcessRelevantInformationUseCase
         .map(RawInformationItem::relevantInformationId)
         .filter(java.util.Objects::nonNull)
         .distinct()
-        .map(this::processOneIsolatingFailure)
         .toList();
   }
 
@@ -291,6 +323,9 @@ public final class DefaultProcessRelevantInformationUseCase
     }
     try {
       IndexingReport indexingReport = knowledgeBaseIndexer.index(anchor, source.get());
+      if (indexingReport.skipped() > 0) {
+        return; // another run holds this item; it will complete (or be reconciled) there
+      }
       if (indexingReport.fullyIndexed()) {
         recordActivity(
             relevantInformationId,
@@ -312,6 +347,11 @@ public final class DefaultProcessRelevantInformationUseCase
                     : " (" + String.join("; ", indexingReport.notes()) + ")"));
       }
     } catch (RuntimeException indexingFailure) {
+      if (AiCapabilityFailureException.findIn(indexingFailure)
+          .map(AiError::capabilitySuspended)
+          .orElse(false)) {
+        return; // not a failure of this item: reconciliation indexes it once the capability is back
+      }
       log.warn(
           "Indexing failed for relevant information {}", relevantInformationId, indexingFailure);
       recordActivity(
@@ -428,6 +468,10 @@ public final class DefaultProcessRelevantInformationUseCase
     return switch (outcome) {
       case SummaryOutcome.GenerationUnavailable unavailable -> {
         var error = unavailable.error();
+        if (error.capabilitySuspended()) {
+          deferIfSuspect(anchor, error);
+          yield Optional.of(ProcessingReport.suspended(relevantInformation.id(), error.message()));
+        }
         recordActivity(
             relevantInformation.id(),
             anchor.id(),
@@ -435,6 +479,7 @@ public final class DefaultProcessRelevantInformationUseCase
             withOutputInvalidDiagnostics(
                 "summary generation failed (" + error.code() + "): " + error.message(), error));
         if (error.retryable()) {
+          deferBehindUnattemptedItems(anchor);
           yield Optional.of(
               ProcessingReport.signalSummaryPending(
                   relevantInformation.id(), signal.id(), "retryable: " + error.code()));
@@ -492,6 +537,10 @@ public final class DefaultProcessRelevantInformationUseCase
   // --- shared -----------------------------------------------------
 
   private ProcessingReport handleAiFailure(RawInformationItem anchor, String stage, AiError error) {
+    if (error.capabilitySuspended()) {
+      deferIfSuspect(anchor, error);
+      return ProcessingReport.suspended(anchor.relevantInformationId(), error.message());
+    }
     recordActivity(
         anchor.relevantInformationId(),
         anchor.id(),
@@ -499,10 +548,31 @@ public final class DefaultProcessRelevantInformationUseCase
         withOutputInvalidDiagnostics(
             stage + " failed (" + error.code() + "): " + error.message(), error));
     if (error.retryable()) {
+      deferBehindUnattemptedItems(anchor);
       return ProcessingReport.assessmentFailed(
           anchor.relevantInformationId(), "retryable: " + error.code());
     }
     return failStage(anchor, stage, error.message());
+  }
+
+  /**
+   * A capability suspended because the provider rejected <em>this</em> item's request may have been
+   * suspended by a bad item: it goes behind the others, so the next sweep probes the capability
+   * with a different one. Items that were only skipped keep their place.
+   */
+  private void deferIfSuspect(RawInformationItem anchor, AiError suspension) {
+    if (suspension.suspendedByRejectingThisRequest()) {
+      deferBehindUnattemptedItems(anchor);
+    }
+  }
+
+  /**
+   * Keeps an item that could not be processed — a transient failure, or a request the provider
+   * rejected — from staying at the head of every sweep: the next sweep tries the others first.
+   */
+  private void deferBehindUnattemptedItems(RawInformationItem anchor) {
+    rawInformationItemRepository.recordRetryableAttempt(
+        anchor.id(), anchor.processingState().state(), clock.instant());
   }
 
   /**

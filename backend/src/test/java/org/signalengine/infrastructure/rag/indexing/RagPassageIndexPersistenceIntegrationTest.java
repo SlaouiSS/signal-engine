@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.signalengine.infrastructure.persistence.AbstractPersistenceIntegrationTest;
+import org.signalengine.infrastructure.rag.SeededPassageIndex;
 import org.signalengine.rag.ComponentDescriptor;
 import org.signalengine.rag.RagComponentType;
 import org.signalengine.rag.chunking.Passage;
@@ -13,7 +14,6 @@ import org.signalengine.rag.embedding.EmbeddingModelDescriptor;
 import org.signalengine.rag.indexing.IndexedPassage;
 import org.signalengine.rag.indexing.IndexedPassageStore;
 import org.signalengine.rag.indexing.IndexingException;
-import org.signalengine.rag.indexing.PassagePersistOutcome;
 import org.signalengine.rag.provenance.Provenance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -74,8 +74,8 @@ class RagPassageIndexPersistenceIntegrationTest extends AbstractPersistenceInteg
   void aRealEmbeddingRoundTripsAndReIndexingIsIdempotent() {
     IndexedPassage passage = passage("rt-1", "content-rt", 0, GEMMA, vector(1));
 
-    assertThat(store.save(passage)).isEqualTo(PassagePersistOutcome.INSERTED);
-    assertThat(store.save(passage)).isEqualTo(PassagePersistOutcome.UPDATED);
+    seeded().add(passage);
+    seeded().add(passage);
 
     Integer passageRows =
         jdbcClient
@@ -101,7 +101,7 @@ class RagPassageIndexPersistenceIntegrationTest extends AbstractPersistenceInteg
 
   @Test
   void provenanceMetadataAndModelIdentityArePreserved() {
-    store.save(passage("pm-1", "content-pm", 3, GEMMA, vector(2)));
+    seeded().add(passage("pm-1", "content-pm", 3, GEMMA, vector(2)));
 
     var passageRow =
         jdbcClient
@@ -159,8 +159,8 @@ class RagPassageIndexPersistenceIntegrationTest extends AbstractPersistenceInteg
   void twoEmbeddingModelsCoexistForTheSamePassage() {
     EmbeddingModelDescriptor other =
         new EmbeddingModelDescriptor("ollama", "granite-embedding", "embed/v1", 768);
-    store.save(passage("co-1", "content-co", 0, GEMMA, vector(3)));
-    store.save(passage("co-1", "content-co", 0, other, vector(4)));
+    seeded().add(passage("co-1", "content-co", 0, GEMMA, vector(3)));
+    seeded().add(passage("co-1", "content-co", 0, other, vector(4)));
 
     Integer passageRows =
         jdbcClient
@@ -185,7 +185,7 @@ class RagPassageIndexPersistenceIntegrationTest extends AbstractPersistenceInteg
             0,
             new EmbeddingModelDescriptor("ollama", "m", "v", 8),
             new float[8]);
-    assertThatThrownBy(() -> store.save(tooShort))
+    assertThatThrownBy(() -> seeded().add(tooShort))
         .isInstanceOf(IndexingException.class)
         .hasMessageContaining("incompatible");
   }
@@ -207,7 +207,7 @@ class RagPassageIndexPersistenceIntegrationTest extends AbstractPersistenceInteg
 
   @Test
   void theEmbeddingDimensionCheckIsEnforced() {
-    store.save(passage("ck-1", "content-ck", 0, GEMMA, vector(11)));
+    seeded().add(passage("ck-1", "content-ck", 0, GEMMA, vector(11)));
     assertThatThrownBy(
             () ->
                 jdbcClient
@@ -223,7 +223,7 @@ class RagPassageIndexPersistenceIntegrationTest extends AbstractPersistenceInteg
 
   @Test
   void deletingAPassageCascadesToItsEmbeddings() {
-    store.save(passage("cx-1", "content-cx", 0, GEMMA, vector(5)));
+    seeded().add(passage("cx-1", "content-cx", 0, GEMMA, vector(5)));
     jdbcClient.sql("DELETE FROM rag_passage WHERE id = 'cx-1'").update();
     Integer embeddingRows =
         jdbcClient
@@ -254,5 +254,14 @@ class RagPassageIndexPersistenceIntegrationTest extends AbstractPersistenceInteg
       b.append(Float.toString(v[i]));
     }
     return b.append(']').toString();
+  }
+
+  private SeededPassageIndex seededPassageIndex;
+
+  private SeededPassageIndex seeded() {
+    if (seededPassageIndex == null) {
+      seededPassageIndex = new SeededPassageIndex(store);
+    }
+    return seededPassageIndex;
   }
 }

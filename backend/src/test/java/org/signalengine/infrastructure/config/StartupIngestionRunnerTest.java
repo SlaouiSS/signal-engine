@@ -21,6 +21,7 @@ import org.mockito.InOrder;
 import org.signalengine.application.dedup.GroupIntoRelevantInformationUseCase;
 import org.signalengine.application.ingestion.CollectFromSourceUseCase;
 import org.signalengine.application.signal.ProcessRelevantInformationUseCase;
+import org.signalengine.application.signal.ReconcileKnowledgeBaseIndexUseCase;
 import org.springframework.boot.DefaultApplicationArguments;
 
 /**
@@ -40,23 +41,34 @@ class StartupIngestionRunnerTest {
       mock(GroupIntoRelevantInformationUseCase.class);
   private final ProcessRelevantInformationUseCase processRelevantInformation =
       mock(ProcessRelevantInformationUseCase.class);
+  private final ReconcileKnowledgeBaseIndexUseCase reconcileKnowledgeBaseIndex =
+      mock(ReconcileKnowledgeBaseIndexUseCase.class);
 
   @Test
-  void runsCollectThenGroupThenProcessInOrder() {
+  void runsCollectThenGroupThenProcessThenReconcileTheKnowledgeBaseIndexInOrder() {
     when(collectFromSource.collectFromEnabledSources()).thenReturn(List.of());
     when(groupIntoRelevantInformation.groupNormalizedRawInformationItems()).thenReturn(List.of());
     when(processRelevantInformation.processPending()).thenReturn(List.of());
+    when(reconcileKnowledgeBaseIndex.reconcilePending()).thenReturn(List.of());
     StartupIngestionRunner runner = runnerWith(SAME_THREAD_EXECUTOR);
 
     runner.run(new DefaultApplicationArguments());
 
     InOrder order =
-        inOrder(collectFromSource, groupIntoRelevantInformation, processRelevantInformation);
+        inOrder(
+            collectFromSource,
+            groupIntoRelevantInformation,
+            processRelevantInformation,
+            reconcileKnowledgeBaseIndex);
     order.verify(collectFromSource).collectFromEnabledSources();
     order.verify(groupIntoRelevantInformation).groupNormalizedRawInformationItems();
     order.verify(processRelevantInformation).processPending();
+    order.verify(reconcileKnowledgeBaseIndex).reconcilePending();
     verifyNoMoreInteractions(
-        collectFromSource, groupIntoRelevantInformation, processRelevantInformation);
+        collectFromSource,
+        groupIntoRelevantInformation,
+        processRelevantInformation,
+        reconcileKnowledgeBaseIndex);
   }
 
   @Test
@@ -132,6 +144,7 @@ class StartupIngestionRunnerTest {
         collectFromSource,
         groupIntoRelevantInformation,
         processRelevantInformation,
+        reconcileKnowledgeBaseIndex,
         executor,
         FIXED_CLOCK);
   }

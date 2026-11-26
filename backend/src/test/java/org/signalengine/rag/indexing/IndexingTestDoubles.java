@@ -1,9 +1,12 @@
 package org.signalengine.rag.indexing;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import org.signalengine.rag.ComponentDescriptor;
 import org.signalengine.rag.RagComponentType;
 import org.signalengine.rag.chunking.Chunker;
@@ -82,9 +85,11 @@ final class IndexingTestDoubles {
   static final class DeterministicEmbeddingModel implements EmbeddingModel {
 
     boolean fail;
+    int calls;
 
     @Override
     public EmbeddingResult embed(EmbeddingRequest request) {
+      calls++;
       if (fail) {
         throw new org.signalengine.rag.embedding.EmbeddingException(
             "embedding provider unavailable");
@@ -101,22 +106,81 @@ final class IndexingTestDoubles {
     }
   }
 
-  /** An in-memory store keyed by (passageId, embeddingModel) — proves idempotency. */
+  /**
+   * An in-memory store keyed by (passageId, embeddingModel) — proves idempotency — with the same
+   * claim, atomic-replace and fencing contract as the real one.
+   */
   static final class InMemoryIndexedPassageStore implements IndexedPassageStore {
 
     final Map<String, IndexedPassage> entries = new LinkedHashMap<>();
-    String failForPassageId;
+    final Map<String, Long> revisionByContent = new LinkedHashMap<>();
+    final Set<String> claimedContents = new HashSet<>();
+    final List<String> abandonedContents = new ArrayList<>();
+    final List<Boolean> abandonedAsFailedAttempt = new ArrayList<>();
+    final Map<String, String> completionMarkers = new LinkedHashMap<>();
+    final Map<String, ComponentDescriptor> markerChunkers = new LinkedHashMap<>();
+    boolean failOnReplace;
+
+    /** Simulates a newer run claiming the content between this run's claim and its replace. */
+    boolean supersedeBeforeReplace;
 
     @Override
-    public PassagePersistOutcome save(IndexedPassage indexed) {
-      if (indexed.passageId().equals(failForPassageId)) {
+    public Optional<IndexClaim> claim(
+        String contentId, String contentFingerprint, ComponentDescriptor chunker) {
+      boolean alreadyCurrent =
+          contentFingerprint.equals(completionMarkers.get(contentId))
+              && chunker.equals(markerChunkers.get(contentId));
+      if (alreadyCurrent || !claimedContents.add(contentId)) {
+        return Optional.empty();
+      }
+      long revision = revisionByContent.merge(contentId, 1L, Long::sum);
+      return Optional.of(new IndexClaim(contentId, revision));
+    }
+
+    @Override
+    public ContentReplacement replaceContent(
+        IndexClaim claim, String contentFingerprint, List<IndexedPassage> passages) {
+      if (supersedeBeforeReplace) {
+        revisionByContent.merge(claim.contentId(), 1L, Long::sum);
+      }
+      if (revisionByContent.get(claim.contentId()) != claim.revision()) {
+        throw new StaleIndexClaimException(claim);
+      }
+      if (failOnReplace) {
         throw new IllegalStateException("simulated persistence failure");
       }
-      String key = indexed.passageId() + "|" + indexed.embeddingModel().model();
-      PassagePersistOutcome outcome =
-          entries.containsKey(key) ? PassagePersistOutcome.UPDATED : PassagePersistOutcome.INSERTED;
-      entries.put(key, indexed);
-      return outcome;
+      IndexedPassage first = passages.get(0);
+      Set<String> keptPassageIds = new HashSet<>();
+      int inserted = 0;
+      int updated = 0;
+      for (IndexedPassage indexed : passages) {
+        keptPassageIds.add(indexed.passageId());
+        String key = indexed.passageId() + "|" + indexed.embeddingModel().model();
+        if (entries.put(key, indexed) == null) {
+          inserted++;
+        } else {
+          updated++;
+        }
+      }
+      int before = entries.size();
+      entries
+          .values()
+          .removeIf(
+              existing ->
+                  existing.contentId().equals(claim.contentId())
+                      && existing.chunker().equals(first.chunker())
+                      && !keptPassageIds.contains(existing.passageId()));
+      claimedContents.remove(claim.contentId());
+      completionMarkers.put(claim.contentId(), contentFingerprint);
+      markerChunkers.put(claim.contentId(), first.chunker());
+      return new ContentReplacement(inserted, updated, before - entries.size());
+    }
+
+    @Override
+    public void abandon(IndexClaim claim, boolean countAsFailedAttempt) {
+      claimedContents.remove(claim.contentId());
+      abandonedContents.add(claim.contentId());
+      abandonedAsFailedAttempt.add(countAsFailedAttempt);
     }
   }
 }

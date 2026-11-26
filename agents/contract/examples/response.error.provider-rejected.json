@@ -1,0 +1,17 @@
+{
+  "correlationId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+  "contractVersion": 1,
+  "capability": "echo",
+  "status": "error",
+  "error": {
+    "code": "AI_PROVIDER_UNAVAILABLE",
+    "category": "provider",
+    "retryable": false,
+    "message": "NVIDIA Build returned HTTP 404",
+    "correlationId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+    "details": {
+      "providerStatus": 404,
+      "providerFailureScope": "configuration"
+    }
+  }
+}

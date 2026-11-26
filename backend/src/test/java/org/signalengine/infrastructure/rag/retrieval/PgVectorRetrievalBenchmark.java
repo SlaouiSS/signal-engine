@@ -17,6 +17,7 @@ import java.util.TreeMap;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.signalengine.infrastructure.rag.SeededPassageIndex;
 import org.signalengine.rag.ComponentDescriptor;
 import org.signalengine.rag.RagComponentType;
 import org.signalengine.rag.chunking.Passage;
@@ -180,9 +181,14 @@ class PgVectorRetrievalBenchmark {
               passage.embeddableText(),
               provenance,
               Map.of("area", passage.area()));
-      indexedPassageStore.save(
-          new IndexedPassage(
-              passage.id(), indexablePassage, CHUNKER, embeddings.vector(i), embeddings.model()));
+      seeded()
+          .add(
+              new IndexedPassage(
+                  passage.id(),
+                  indexablePassage,
+                  CHUNKER,
+                  embeddings.vector(i),
+                  embeddings.model()));
     }
     return new IndexingSummary(
         embeddings.model().provider() + "/" + embeddings.model().model(),
@@ -533,4 +539,13 @@ class PgVectorRetrievalBenchmark {
       List<String> relevantNotAtRankOne,
       List<QueryOutcome> queries,
       Map<String, Double> eightThreeABaseline) {}
+
+  private SeededPassageIndex seededPassageIndex;
+
+  private SeededPassageIndex seeded() {
+    if (seededPassageIndex == null) {
+      seededPassageIndex = new SeededPassageIndex(indexedPassageStore);
+    }
+    return seededPassageIndex;
+  }
 }

@@ -1,5 +1,9 @@
 package org.signalengine.rag.indexing;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import java.util.Map;
 import org.signalengine.rag.provenance.Provenance;
 
@@ -32,6 +36,21 @@ public record IndexableContent(
     metadata = metadata == null ? Map.of() : Map.copyOf(metadata);
     if (metadata.keySet().stream().anyMatch(key -> key == null || key.isBlank())) {
       throw new IllegalArgumentException("metadata keys must not be blank");
+    }
+  }
+
+  /**
+   * A fingerprint of {@link #text()}: the SHA-256, hex-encoded, of its UTF-8 bytes. Recorded with
+   * the completion marker of an indexing, so an indexing built from other text can be recognised as
+   * outdated (docs/adr/0018-pipeline-reliability.md).
+   */
+  public String fingerprint() {
+    try {
+      byte[] hash =
+          MessageDigest.getInstance("SHA-256").digest(text.getBytes(StandardCharsets.UTF_8));
+      return HexFormat.of().formatHex(hash);
+    } catch (NoSuchAlgorithmException impossible) {
+      throw new IllegalStateException("SHA-256 is required by the Java platform", impossible);
     }
   }
 }

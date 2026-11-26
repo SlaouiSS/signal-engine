@@ -5,6 +5,7 @@ import io.github.semanticchunker.model.ChunkingRequest;
 import io.github.semanticchunker.model.ModelException;
 import io.github.semanticchunker.model.ModelResponse;
 import io.github.semanticchunker.model.TokenUsage;
+import org.signalengine.application.ai.AiCapabilityFailureException;
 import org.signalengine.application.ai.AiCapabilityInvoker;
 import org.signalengine.application.ai.AiCapabilityOutcome;
 import org.signalengine.application.ai.AiCapabilityRequest;
@@ -66,7 +67,8 @@ public final class AiCapabilityChunkingModel implements ChunkingModel {
               "the semantic-chunk-boundary capability failed ["
                   + failed.error().code()
                   + "]: "
-                  + failed.error().message());
+                  + failed.error().message(),
+              new AiCapabilityFailureException(failed.error()));
     };
   }
 

@@ -13,6 +13,7 @@ import org.signalengine.application.ai.AiCapabilityOutcome;
 import org.signalengine.application.ai.AiCapabilityRequest;
 import org.signalengine.application.ai.AiResponseMetadata;
 import org.signalengine.infrastructure.persistence.AbstractPersistenceIntegrationTest;
+import org.signalengine.infrastructure.rag.SeededPassageIndex;
 import org.signalengine.infrastructure.rag.generation.AiCapabilityAnswerGenerator;
 import org.signalengine.infrastructure.rag.generation.AiCapabilityAnswerGenerator.CitationPayload;
 import org.signalengine.infrastructure.rag.generation.AiCapabilityAnswerGenerator.RequestPayload;
@@ -82,7 +83,7 @@ class GroundedGenerationRetrievalIntegrationTest extends AbstractPersistenceInte
             id,
             Map.of("author", "A. Writer"));
     Passage passage = new Passage(id, 0, body, provenance, Map.of("language", "en"));
-    store.save(new IndexedPassage(contentId, passage, CHUNKER, vector, GEMMA));
+    seeded().add(new IndexedPassage(contentId, passage, CHUNKER, vector, GEMMA));
   }
 
   /**
@@ -181,5 +182,14 @@ class GroundedGenerationRetrievalIntegrationTest extends AbstractPersistenceInte
         throw new AssertionError("the answer capability must not be called for an empty context");
       }
     };
+  }
+
+  private SeededPassageIndex seededPassageIndex;
+
+  private SeededPassageIndex seeded() {
+    if (seededPassageIndex == null) {
+      seededPassageIndex = new SeededPassageIndex(store);
+    }
+    return seededPassageIndex;
   }
 }

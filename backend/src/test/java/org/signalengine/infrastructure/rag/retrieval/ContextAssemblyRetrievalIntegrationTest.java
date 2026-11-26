@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.signalengine.infrastructure.persistence.AbstractPersistenceIntegrationTest;
+import org.signalengine.infrastructure.rag.SeededPassageIndex;
 import org.signalengine.rag.ComponentDescriptor;
 import org.signalengine.rag.RagComponentType;
 import org.signalengine.rag.chunking.Passage;
@@ -76,7 +77,7 @@ class ContextAssemblyRetrievalIntegrationTest extends AbstractPersistenceIntegra
             id,
             Map.of("author", "A. Writer"));
     Passage passage = new Passage(id, 0, body, provenance, Map.of("language", "en"));
-    store.save(new IndexedPassage(contentId, passage, CHUNKER, vector, GEMMA));
+    seeded().add(new IndexedPassage(contentId, passage, CHUNKER, vector, GEMMA));
   }
 
   @Test
@@ -222,5 +223,14 @@ class ContextAssemblyRetrievalIntegrationTest extends AbstractPersistenceIntegra
         firstRun.passages().size(),
         usedCharacters,
         totalNanos / 1_000.0 / iterations);
+  }
+
+  private SeededPassageIndex seededPassageIndex;
+
+  private SeededPassageIndex seeded() {
+    if (seededPassageIndex == null) {
+      seededPassageIndex = new SeededPassageIndex(store);
+    }
+    return seededPassageIndex;
   }
 }

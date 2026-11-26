@@ -11,6 +11,10 @@ The Java↔Python capability contract (`docs/03-technical-spec.md` Section 8;
   contract test replays them through the Java HTTP adapter. `backend/build.gradle.kts`
   copies this directory onto the backend test classpath, so there is one copy.
 
+Error fixtures pin the failure taxonomy on both sides, including `response.error.provider-rejected.json`:
+a permanent provider refusal (`retryable: false`, `details.providerStatus`,
+`details.providerFailureScope` = `configuration` or `request`; `docs/adr/0018-pipeline-reliability.md`).
+
 Endpoint: `POST /capabilities/{name}/v{version}` — e.g. `POST /capabilities/echo/v1`.
 `echo` is the trivial capability that exists only to prove this contract; the
 first real capability arrives in Task 6B.

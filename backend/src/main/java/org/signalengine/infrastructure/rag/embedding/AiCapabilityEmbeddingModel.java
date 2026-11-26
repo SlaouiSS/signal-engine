@@ -2,6 +2,7 @@ package org.signalengine.infrastructure.rag.embedding;
 
 import java.util.List;
 import java.util.Locale;
+import org.signalengine.application.ai.AiCapabilityFailureException;
 import org.signalengine.application.ai.AiCapabilityInvoker;
 import org.signalengine.application.ai.AiCapabilityOutcome;
 import org.signalengine.application.ai.AiCapabilityRequest;
@@ -100,7 +101,8 @@ public final class AiCapabilityEmbeddingModel implements EmbeddingModel {
               "the embed capability failed ["
                   + failed.error().code()
                   + "]: "
-                  + failed.error().message());
+                  + failed.error().message(),
+              new AiCapabilityFailureException(failed.error()));
     };
   }
 

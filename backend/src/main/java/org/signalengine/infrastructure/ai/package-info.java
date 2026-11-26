@@ -9,6 +9,9 @@
  *       envelope, calls {@code POST /capabilities/{name}/v{version}} on the Python service,
  *       validates the response envelope, and maps transport/timeout/contract failures to a typed
  *       {@link org.signalengine.application.ai.AiError}.
+ *   <li>{@code SuspendingAiCapabilityInvoker} — decorates it so a capability whose provider
+ *       configuration was refused is suspended (persisted, migration V12) and probed again under
+ *       control, instead of being retried for every item (docs/adr/0018-pipeline-reliability.md).
  *   <li>{@code AiFoundationProperties} — the Python service URL and call timeouts, all
  *       environment-overridable.
  * </ul>

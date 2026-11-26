@@ -18,7 +18,12 @@ from typing import Any
 
 import httpx
 
-from app.providers.base import GenerationRequest, GenerationResult, ProviderError
+from app.providers.base import (
+    GenerationRequest,
+    GenerationResult,
+    ProviderError,
+    http_status_error,
+)
 
 _PROVIDER_NAME = "nvidia"
 
@@ -99,9 +104,8 @@ class NvidiaLlmProvider:
                 timed_out=True,
             ) from timeout_error
         except httpx.HTTPStatusError as status_error:
-            raise ProviderError(
-                f"NVIDIA Build returned HTTP {status_error.response.status_code}",
-                retryable=True,
+            raise http_status_error(
+                "NVIDIA Build", status_error.response.status_code
             ) from status_error
         except httpx.HTTPError as transport_error:
             raise ProviderError(

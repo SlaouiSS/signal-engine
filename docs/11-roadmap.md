@@ -506,8 +506,10 @@ context assembly, generation, or grounding logic was reimplemented at the API
 boundary. The pgvector index is populated automatically: once relevance
 assessment confirms an item (`DefaultProcessRelevantInformationUseCase`), the
 new `KnowledgeBaseIndexer` port runs it through the existing `IndexingPipeline`
-outside the relevance database transaction — no scheduler, no background
-worker, and no backfill for records processed before this wiring existed.
+outside the relevance database transaction. Indexing is repaired, not best effort only: items whose
+relevance is confirmed but that have no matching completion marker are indexed again by a
+reconciliation stage at the end of the startup run (`docs/adr/0018-pipeline-reliability.md`) — still
+no scheduler and no background worker.
 `embeddinggemma` / 768 (T3) and the exact pgvector cosine scan with no ANN
 index (T7) remain the provisional baseline; the advanced RAG techniques below
 remain deferred.

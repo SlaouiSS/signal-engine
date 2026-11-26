@@ -8,9 +8,11 @@
  * <ul>
  *   <li>{@link org.signalengine.infrastructure.rag.indexing.PgVectorIndexedPassageStore} implements
  *       the core {@link org.signalengine.rag.indexing.IndexedPassageStore} against the {@code
- *       rag_passage} and {@code rag_passage_embedding} tables (migration V11). It upserts on the
+ *       rag_passage}, {@code rag_passage_embedding} (migration V11) and {@code rag_content_index}
+ *       (migration V13: claim, fencing revision, completion marker) tables. It upserts on the
  *       deterministic passage id and the embedding-model natural key, so indexing is idempotent and
- *       a new model coexists with the old one. It uses {@code JdbcClient} directly for the {@code
+ *       a new model coexists with the old one; a content's passages are replaced atomically
+ *       (docs/adr/0018-pipeline-reliability.md). It uses {@code JdbcClient} directly for the {@code
  *       ::vector} cast and the {@code ON CONFLICT} upsert, which Spring Data JDBC repositories do
  *       not express cleanly; no JPA/Hibernate.
  *   <li>{@link org.signalengine.infrastructure.rag.indexing.RagIndexingConfiguration} wires a

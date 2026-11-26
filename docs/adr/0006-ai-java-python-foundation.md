@@ -220,6 +220,21 @@ stale without any local change — a known trade-off of the NVIDIA Build default
 model is usable — verify against a real API call with the project's own
 credential before relying on a model id, not just against `/v1/models`.
 
+**Updated again (2026-11-24) — provider HTTP failures are classified, and a refused configuration
+suspends the capability:** both provider adapters had marked every HTTP error status retryable, which
+contradicted `docs/03-technical-spec.md` Section 13.2 (only transport/5xx is retryable) and made a
+retired model (the 2026-09-12 incident above) or a revoked key fail every item on every sweep and
+restart. Now 408/425/429/5xx and transport failures stay retryable; 401/402/403/404/410 are
+permanent and mean the provider *configuration* was refused; any other 4xx is permanent and specific to
+the request. The envelope keeps `AI_PROVIDER_UNAVAILABLE`/`provider`, sets `retryable=false` when
+permanent, and adds `details.providerStatus` and `details.providerFailureScope`
+(`configuration`/`request`) — the schema is unchanged. Java suspends a capability on a configuration
+refusal instead of marking items `FAILED` (synthesised `AI_CAPABILITY_SUSPENDED`, category
+`suspended`). A rejection that only *looks* specific to one request (`request` scope: 400, 422…) is
+treated as that request's own fault only once the capability is known to work (a recent success);
+before that it is ambiguous — a refused model parameter produces it for every request — and the
+capability is suspended instead. See `docs/adr/0018-pipeline-reliability.md`.
+
 ## Trade-offs
 
 - **Generic invoker vs. per-capability ports.** The generic port needs

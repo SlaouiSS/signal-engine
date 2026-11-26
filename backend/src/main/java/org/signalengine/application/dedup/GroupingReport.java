@@ -20,7 +20,12 @@ public record GroupingReport(
     /** The item was not awaiting near-duplicate assessment (already grouped, or failed). */
     SKIPPED_ALREADY_ASSESSED,
     /** The AI assessment failed; the item is untouched (retryable) or marked failed. */
-    ASSESSMENT_FAILED
+    ASSESSMENT_FAILED,
+    /**
+     * The near-duplicate capability is suspended (its provider configuration was refused): the item
+     * is untouched and the sweep stops (docs/adr/0018-pipeline-reliability.md).
+     */
+    SUSPENDED
   }
 
   static GroupingReport associatedWithExisting(
@@ -37,6 +42,10 @@ public record GroupingReport(
   static GroupingReport skippedAlreadyAssessed(UUID rawInformationItemId, String currentState) {
     return new GroupingReport(
         rawInformationItemId, Outcome.SKIPPED_ALREADY_ASSESSED, null, currentState);
+  }
+
+  static GroupingReport suspended(UUID rawInformationItemId, String detail) {
+    return new GroupingReport(rawInformationItemId, Outcome.SUSPENDED, null, detail);
   }
 
   static GroupingReport assessmentFailed(UUID rawInformationItemId, String reason) {

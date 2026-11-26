@@ -215,3 +215,12 @@ threshold), Q13 (browsing not-relevant items), Q15 (signal lifecycle detail),
 Q18 (feedback change/comments), Q19 / Q20 (alerts), Q21 (Q&A), the future
 evaluation subsystem, and multilingual behaviour. Task 7 creates no alert, no
 embedding, no search or Q&A, and no frontend change.
+
+
+**Updated (2026-11-24, `docs/adr/0018-pipeline-reliability.md`):** a retryable AI failure now moves
+the item behind the items not attempted yet (pending pages are ordered by last attempt), so it cannot
+starve the queue; a *suspended* capability (its provider configuration was refused) leaves the item
+untouched and stops the sweep after one Activity Record instead of failing every item. Indexing a
+relevant item remains best effort, but it is no longer lost: `ReconcileKnowledgeBaseIndexUseCase`
+indexes again any item whose relevance is confirmed and whose indexing has no matching completion
+marker.

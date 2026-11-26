@@ -1034,7 +1034,8 @@ ids), and position-sensitive. Not a random UUID.
 `SignalEngineIndexableContent` (infrastructure) maps a `RawInformationItem` +
 `Source` into the generic `IndexableContent`. It is the one place business types
 meet the RAG contracts; it applies no business rule and changes no ingestion
-behaviour. Nothing indexes Signal Engine content automatically yet.
+behaviour. Indexing is triggered once relevance assessment confirms an item, and repaired by
+reconciliation (`docs/adr/0018-pipeline-reliability.md`).
 
 ### 21.8 Current configuration (all provisional)
 
@@ -1256,18 +1257,24 @@ IndexableContent → Chunker → passages → EmbeddingModel → rag_passage / r
 architecture test forbids Spring, JDBC, PostgreSQL, pgvector and every Signal
 Engine business package):
 
-- **`IndexedPassageStore`** &mdash; `PassagePersistOutcome save(IndexedPassage)`.
-  The write-side counterpart of `Retriever`; PostgreSQL/pgvector sits behind it in
-  infrastructure. Idempotent by identity; a changed chunker configuration or a
-  changed embedding model coexists; nothing is deleted, truncated or padded.
+- **`IndexedPassageStore`** &mdash; `claim`, `replaceContent`, `abandon`
+  (`docs/adr/0018-pipeline-reliability.md`). The write-side counterpart of
+  `Retriever`; PostgreSQL/pgvector sits behind it in infrastructure. A content is
+  claimed (a fencing revision), prepared outside any transaction, then replaced
+  atomically together with a completion marker. Idempotent by identity; a changed
+  chunker configuration or a changed embedding model coexists; only the passages of
+  the same content and chunker configuration that a new result no longer contains
+  are removed; nothing is truncated or padded. (Originally `PassagePersistOutcome
+  save(IndexedPassage)`, one passage at a time; superseded by ADR 0018.)
 - **`IndexedPassage`** &mdash; a chunked `Passage` plus its embedding, the chunker
   descriptor and the `EmbeddingModelDescriptor`. Identity = deterministic passage
   id (Task 8.2) + embedding model.
 - **`StagedIndexingPipeline`** &mdash; the supplied `IndexingPipeline`: composes a
   `Chunker`, an `EmbeddingModel` and an `IndexedPassageStore`; returns an
-  `IndexingReport` (passages, embedded, persisted, skipped, failed, notes). An
-  embedding failure aborts the content; a per-passage persist failure is counted,
-  not swallowed.
+  `IndexingReport` (passages, embedded, persisted, skipped, failed, notes). Any
+  failure aborts the content and stores nothing (replacement is atomic); a content
+  that is already completely indexed, or claimed by another run, is reported as
+  skipped; chunking that produces no passage is a failure, never a success.
 
 `EmbeddingResult.model()` is now a generic `EmbeddingModelDescriptor(provider,
 model, version, dimension)` so persistence can record *which* model produced a
@@ -1279,6 +1286,7 @@ vector (Task 8.3A carried only an opaque descriptor).
 |---|---|---|
 | `rag_passage` | `id` = deterministic passage id (TEXT) | `content_id`, structured provenance (`source_id`, `document_id`, `origin_uri`, `title`), `chunker_id`/`chunker_version`, `passage_ordinal`, `passage_text`, `provenance_attributes`/`metadata` (JSONB), timestamps |
 | `rag_passage_embedding` | `(passage_id, embedding_model, embedding_model_version)` unique | `passage_id` FK (cascade), `embedding_provider`/`embedding_model`/`embedding_model_version`, `embedding_dimension` (`CHECK = 768`), `embedding` `vector(768)`, timestamps |
+| `rag_content_index` (migration V13) | `content_id` | the claim (`revision` fencing token, `lease_until`, `failed_attempts`) and the completion marker (`indexed_at`, `content_fingerprint`, chunker configuration, embedding model, `passage_count`), written with the atomic replacement |
 
 No business-level "Document" entity. No triggers, no stored procedures. The
 PostgreSQL adapter (`PgVectorIndexedPassageStore`, infrastructure) uses
@@ -1304,7 +1312,10 @@ JPA/Hibernate.
 The logical identity is passage id (content + chunker + chunker configuration +
 ordinal + text) plus the embedding model. Re-running the same content/config/model
 refreshes in place; a changed chunker configuration or a changed embedding model
-**coexists** with the previous rows &mdash; nothing is silently deleted. A model
+**coexists** with the previous rows. (Re-indexing a *content* replaces, atomically, only the passages
+of the same content and chunker configuration that the new result no longer contains, and records a
+completion marker; retrieval returns the marker's chunker configuration only —
+`docs/adr/0018-pipeline-reliability.md`.) A model
 swap: change `OLLAMA_EMBEDDING_MODEL`, re-index (new `rag_passage_embedding` rows
 appear, old ones remain), and add a migration for the new `vector(N)` column when
 the dimension differs. No RAG-core or business-logic change.
@@ -1315,8 +1326,8 @@ the dimension differs. No RAG-core or business-logic change.
 and wired; re-validate on real ingested content), **T7** (pgvector index type and
 parameters), retrieval parameters, hybrid retrieval, reranking, context budget,
 the re-embedding migration *procedure*, and shared-vs-separate embeddings for
-near-duplicate and retrieval. Nothing in the backend indexes Signal Engine
-content automatically yet &mdash; no scheduler, no use case, no API.
+near-duplicate and retrieval. A change of embedding model is not detected by the completion
+marker alone (the model is only known after an `embed` call); it belongs to that procedure.
 
 ---
 
