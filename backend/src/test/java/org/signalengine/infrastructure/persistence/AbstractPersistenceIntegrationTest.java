@@ -18,7 +18,8 @@ import org.testcontainers.utility.DockerImageName;
  * JVM; Testcontainers' Ryuk reaps it on exit. {@code @ServiceConnection} wires Spring Boot's {@code
  * DataSource} to it.
  */
-@SpringBootTest
+// No scheduled pipeline: it would work on the rows the tests assert on.
+@SpringBootTest(properties = "signal-engine.pipeline.enabled=false")
 @ActiveProfiles("integration")
 @Tag("integration")
 public abstract class AbstractPersistenceIntegrationTest {
