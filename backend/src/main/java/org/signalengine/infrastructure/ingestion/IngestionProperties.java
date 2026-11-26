@@ -12,6 +12,9 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * (docs/03-technical-spec.md Section 13.4, T9; docs/10-security.md Section 5 — "no exact numeric
  * limit is chosen here"). {@code httpCollectorSourceTypes} is a provisional binding of the
  * HTTP-fetch collector to a source type; it is not a resolution of the source-type catalogue (Q1).
+ *
+ * <p>{@code requestTimeout} bounds the whole fetch of one source: every redirect hop and the
+ * response body, not only the wait for the response headers.
  */
 @ConfigurationProperties("signal-engine.ingestion")
 public record IngestionProperties(
