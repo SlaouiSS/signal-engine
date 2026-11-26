@@ -71,7 +71,13 @@ class ProviderRejectionPipelineIntegrationTest extends AbstractPersistenceIntegr
 
   private static final AiCapabilitySuspensionProperties PROPERTIES =
       new AiCapabilitySuspensionProperties(
-          Duration.ofMinutes(10), Duration.ofHours(1), Duration.ofMinutes(6), Duration.ofHours(24));
+          Duration.ofMinutes(10),
+          Duration.ofHours(1),
+          Duration.ofMinutes(6),
+          Duration.ofHours(24),
+          3,
+          Duration.ofSeconds(30),
+          Duration.ofMinutes(5));
 
   @Autowired private SourceRepository sources;
   @Autowired private RawInformationItemRepository rawItems;

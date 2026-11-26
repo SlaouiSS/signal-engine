@@ -8,6 +8,7 @@ import org.signalengine.application.ai.AiCapabilityOutcome.Failed;
 import org.signalengine.application.ai.AiCapabilityOutcome.Produced;
 import org.signalengine.application.ai.AiCapabilityRequest;
 import org.signalengine.application.ai.AiError;
+import org.signalengine.application.ai.AiInputLimits;
 import org.signalengine.application.signal.ImportanceAssessor.ImportanceVerdict.Assessed;
 import org.signalengine.application.signal.ImportanceAssessor.ImportanceVerdict.AssessmentUnavailable;
 
@@ -29,6 +30,12 @@ public final class DefaultImportanceAssessor implements ImportanceAssessor {
 
   @Override
   public ImportanceVerdict assess(Query query) {
+    var overLimit =
+        AiInputLimits.check(
+            CAPABILITY, "the content", query.itemText(), AiInputLimits.IMPORTANCE_TEXT);
+    if (overLimit.isPresent()) {
+      return new AssessmentUnavailable(overLimit.get());
+    }
     var payload =
         new RequestPayload(
             new ItemText(query.itemText()),

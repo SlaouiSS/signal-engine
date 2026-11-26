@@ -121,6 +121,13 @@ signal-engine:
       # A permanent rejection that looks specific to one request (HTTP 400, 422...) is that
       # request's own fault only if the capability succeeded within this window.
       evidence-window: ${AI_SUSPENSION_EVIDENCE_WINDOW:24h}
+      # Transient failures in a row, with no success between them, that suspend a capability, so an
+      # outage cannot use up items' retry budgets (docs/adr/0019-pipeline-automation.md).
+      transient-failure-threshold: ${AI_SUSPENSION_TRANSIENT_FAILURE_THRESHOLD:3}
+      # A suspension caused by transient failures is short: search and question answering share the
+      # capabilities, and a recovered provider must be used again quickly.
+      transient-initial-cooldown: ${AI_SUSPENSION_TRANSIENT_INITIAL_COOLDOWN:30s}
+      transient-max-cooldown: ${AI_SUSPENSION_TRANSIENT_MAX_COOLDOWN:5m}
 
   # Semantic near-duplicate grouping bounds (docs/adr/0007-semantic-deduplication-
   # relevant-information.md). candidate-pool-size caps the AI comparisons per item

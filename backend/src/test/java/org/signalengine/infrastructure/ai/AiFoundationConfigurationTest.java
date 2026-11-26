@@ -17,12 +17,12 @@ class AiFoundationConfigurationTest {
           .withBean(JdbcClient.class, () -> mock(JdbcClient.class));
 
   @Test
-  void wiresTheSuspendingInvokerAsTheAiCapabilityPort() {
+  void wiresTheDeadlineAwareSuspendingInvokerAsTheAiCapabilityPort() {
     contextRunner.run(
         context -> {
           assertThat(context).hasSingleBean(AiCapabilityInvoker.class);
           assertThat(context.getBean(AiCapabilityInvoker.class))
-              .isInstanceOf(SuspendingAiCapabilityInvoker.class);
+              .isInstanceOf(DeadlineAiCapabilityInvoker.class);
           assertThat(context).hasSingleBean(HttpClient.class);
         });
   }

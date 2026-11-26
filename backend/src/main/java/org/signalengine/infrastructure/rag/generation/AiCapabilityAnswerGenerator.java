@@ -9,6 +9,7 @@ import org.signalengine.application.ai.AiCapabilityInvoker;
 import org.signalengine.application.ai.AiCapabilityOutcome.Failed;
 import org.signalengine.application.ai.AiCapabilityOutcome.Produced;
 import org.signalengine.application.ai.AiCapabilityRequest;
+import org.signalengine.application.ai.AiInputLimits;
 import org.signalengine.application.ai.AiResponseMetadata;
 import org.signalengine.rag.ComponentDescriptor;
 import org.signalengine.rag.RagComponentType;
@@ -114,6 +115,8 @@ public final class AiCapabilityAnswerGenerator implements Generator {
               passage.passageId(), passage.text(), sourceLabel(passage.provenance())));
     }
 
+    requireWithinInputLimits(query, passagePayloads);
+
     AiCapabilityRequest request =
         AiCapabilityRequest.of(
             CAPABILITY, contractVersion, new RequestPayload(query.text(), passagePayloads));
@@ -128,6 +131,22 @@ public final class AiCapabilityAnswerGenerator implements Generator {
       case Produced<ResultPayload> produced ->
           toAnswer(produced.result(), produced.metadata(), passagesById, produced.correlationId());
     };
+  }
+
+  /**
+   * A context the capability is certain to refuse is not sent, and no passage is shortened or
+   * silently left out to make it fit.
+   */
+  private static void requireWithinInputLimits(Query query, List<PassagePayload> passages) {
+    if (passages.size() > AiInputLimits.ANSWER_PASSAGES
+        || AiInputLimits.exceeds(query.text(), AiInputLimits.ANSWER_QUESTION)
+        || passages.stream()
+            .anyMatch(
+                passage ->
+                    AiInputLimits.exceeds(passage.text(), AiInputLimits.ANSWER_PASSAGE_TEXT))) {
+      throw new GenerationException(
+          "the question or its context is over the input limits of the answer capability");
+    }
   }
 
   private RagAnswer toAnswer(

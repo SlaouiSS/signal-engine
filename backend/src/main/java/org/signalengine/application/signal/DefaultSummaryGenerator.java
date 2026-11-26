@@ -2,12 +2,15 @@ package org.signalengine.application.signal;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Stream;
 import org.signalengine.application.ai.AiCapabilityInvoker;
 import org.signalengine.application.ai.AiCapabilityOutcome.Failed;
 import org.signalengine.application.ai.AiCapabilityOutcome.Produced;
 import org.signalengine.application.ai.AiCapabilityRequest;
 import org.signalengine.application.ai.AiError;
+import org.signalengine.application.ai.AiInputLimits;
 import org.signalengine.application.signal.SummaryGenerator.SummaryOutcome.Generated;
 import org.signalengine.application.signal.SummaryGenerator.SummaryOutcome.GenerationUnavailable;
 
@@ -29,6 +32,10 @@ public final class DefaultSummaryGenerator implements SummaryGenerator {
 
   @Override
   public SummaryOutcome generate(Request request) {
+    var overLimit = overLimit(request);
+    if (overLimit.isPresent()) {
+      return new GenerationUnavailable(overLimit.get());
+    }
     var payload =
         new RequestPayload(
             request.content(),
@@ -40,6 +47,29 @@ public final class DefaultSummaryGenerator implements SummaryGenerator {
       case Produced<ResultPayload> produced ->
           toOutcome(produced.result(), produced.correlationId());
     };
+  }
+
+  private static Optional<AiError> overLimit(Request request) {
+    Stream<Optional<AiError>> content =
+        Stream.of(
+            AiInputLimits.check(
+                CAPABILITY, "the content", request.content(), AiInputLimits.SUMMARY_CONTENT));
+    Stream<Optional<AiError>> sources =
+        request.sources().stream()
+            .flatMap(
+                source ->
+                    Stream.of(
+                        AiInputLimits.check(
+                            CAPABILITY,
+                            "a source name",
+                            source.name(),
+                            AiInputLimits.SUMMARY_SOURCE_NAME),
+                        AiInputLimits.check(
+                            CAPABILITY,
+                            "a source URL",
+                            source.url(),
+                            AiInputLimits.SUMMARY_SOURCE_URL)));
+    return Stream.concat(content, sources).flatMap(Optional::stream).findFirst();
   }
 
   private SummaryOutcome toOutcome(ResultPayload result, UUID correlationId) {

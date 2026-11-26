@@ -10,6 +10,7 @@ import org.signalengine.application.ai.AiCapabilityOutcome.Failed;
 import org.signalengine.application.ai.AiCapabilityOutcome.Produced;
 import org.signalengine.application.ai.AiCapabilityRequest;
 import org.signalengine.application.ai.AiError;
+import org.signalengine.application.ai.AiInputLimits;
 import org.signalengine.application.signal.RelevanceAssessor.RelevanceVerdict.Assessed;
 import org.signalengine.application.signal.RelevanceAssessor.RelevanceVerdict.AssessmentUnavailable;
 
@@ -32,6 +33,12 @@ public final class DefaultRelevanceAssessor implements RelevanceAssessor {
 
   @Override
   public RelevanceVerdict assess(Query query) {
+    var overLimit =
+        AiInputLimits.check(
+            CAPABILITY, "the content", query.itemText(), AiInputLimits.RELEVANCE_TEXT);
+    if (overLimit.isPresent()) {
+      return new AssessmentUnavailable(overLimit.get());
+    }
     var payload =
         new RequestPayload(
             new ItemText(query.itemText()),

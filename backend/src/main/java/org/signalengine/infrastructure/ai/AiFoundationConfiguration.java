@@ -45,11 +45,19 @@ class AiFoundationConfiguration {
       HttpClient aiHttpClient,
       AiFoundationProperties properties,
       AiCapabilitySuspensionStore suspensionStore,
-      AiCapabilitySuspensionProperties suspensionProperties) {
-    return new SuspendingAiCapabilityInvoker(
-        new HttpAiCapabilityInvoker(aiHttpClient, properties),
-        suspensionStore,
-        suspensionProperties,
-        Clock.systemUTC());
+      AiCapabilitySuspensionProperties suspensionProperties,
+      AiCallDeadline aiCallDeadline) {
+    return new DeadlineAiCapabilityInvoker(
+        new SuspendingAiCapabilityInvoker(
+            new HttpAiCapabilityInvoker(aiHttpClient, properties),
+            suspensionStore,
+            suspensionProperties,
+            Clock.systemUTC()),
+        aiCallDeadline);
+  }
+
+  @Bean
+  AiCallDeadline aiCallDeadline() {
+    return new AiCallDeadline(Clock.systemUTC());
   }
 }

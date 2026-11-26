@@ -9,6 +9,7 @@ import org.signalengine.application.ai.AiCapabilityOutcome.Failed;
 import org.signalengine.application.ai.AiCapabilityOutcome.Produced;
 import org.signalengine.application.ai.AiCapabilityRequest;
 import org.signalengine.application.ai.AiError;
+import org.signalengine.application.ai.AiInputLimits;
 
 /**
  * Calls the {@code near-duplicate} AI capability (contract v1) through the Task 6A invoker and maps
@@ -31,6 +32,12 @@ public final class DefaultNearDuplicateAssessor implements NearDuplicateAssessor
 
   @Override
   public NearDuplicateAssessment assess(Query query) {
+    var overLimit =
+        AiInputLimits.check(
+            CAPABILITY, "the content", query.candidateText(), AiInputLimits.NEAR_DUPLICATE_TEXT);
+    if (overLimit.isPresent()) {
+      return new NearDuplicateAssessment.AssessmentUnavailable(overLimit.get());
+    }
     Map<String, UUID> candidateIds = new LinkedHashMap<>();
     List<Comparison> comparisons =
         query.candidates().stream()

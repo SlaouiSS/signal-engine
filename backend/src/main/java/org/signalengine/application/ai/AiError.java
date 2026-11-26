@@ -1,5 +1,6 @@
 package org.signalengine.application.ai;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -36,6 +37,49 @@ public record AiError(
   public static final String CAPABILITY_SUSPENDED_CODE = "AI_CAPABILITY_SUSPENDED";
   public static final String SUSPENDED_CATEGORY = "suspended";
 
+  /** A call that was not made because its input is over a known limit of the capability. */
+  public static final String INPUT_LIMIT_CATEGORY = "input_limit";
+
+  /** Detail set on a refused request that is blamed on its own input, not on the capability. */
+  public static final String REJECTED_INPUT_DETAIL = "rejectedInput";
+
+  public static AiError inputLimitExceeded(String message) {
+    return new AiError(
+        "AI_INPUT_LIMIT_EXCEEDED",
+        INPUT_LIMIT_CATEGORY,
+        false,
+        message,
+        UUID.randomUUID(),
+        Map.of());
+  }
+
+  /**
+   * This input cannot be processed as it is: it is over a known limit, or the AI service refused it
+   * while there is no sign that the capability itself is broken. The work is set aside, its data
+   * kept, and the capability stays available (docs/adr/0019-pipeline-automation.md).
+   */
+  public boolean rejectsThisInput() {
+    return INPUT_LIMIT_CATEGORY.equals(category)
+        || (details != null && Boolean.TRUE.equals(details.get(REJECTED_INPUT_DETAIL)));
+  }
+
+  /** The same failure, blamed on its input. */
+  public AiError asRejectionOfThisInput() {
+    Map<String, Object> marked = new LinkedHashMap<>();
+    if (details != null) {
+      marked.putAll(details);
+    }
+    marked.put(REJECTED_INPUT_DETAIL, true);
+    return new AiError(code, category, retryable, message, correlationId, marked);
+  }
+
+  /** A call that was not made because the time budget of the surrounding work is spent. */
+  public static final String TIME_BUDGET_CATEGORY = "time_budget";
+
+  public boolean timeBudgetExceeded() {
+    return TIME_BUDGET_CATEGORY.equals(category);
+  }
+
   /** Detail set on the suspended failure of the very request that made the capability suspect. */
   public static final String REJECTED_THIS_REQUEST_DETAIL = "rejectedThisRequest";
 
@@ -62,6 +106,16 @@ public record AiError(
     return capabilitySuspended()
         && details != null
         && Boolean.TRUE.equals(details.get(REJECTED_THIS_REQUEST_DETAIL));
+  }
+
+  /**
+   * The Java backend and the AI service disagree on the request or response itself (an invalid
+   * request, a contract violation). This comes from the deployment far more often than from one
+   * item, so it suspends the capability instead of failing items
+   * (docs/adr/0019-pipeline-automation.md).
+   */
+  public boolean contractMismatch() {
+    return !retryable && ("contract".equals(category) || "request".equals(category));
   }
 
   /**
