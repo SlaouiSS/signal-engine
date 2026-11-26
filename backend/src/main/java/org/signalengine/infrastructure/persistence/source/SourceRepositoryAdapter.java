@@ -1,5 +1,6 @@
 package org.signalengine.infrastructure.persistence.source;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -30,6 +31,18 @@ class SourceRepositoryAdapter implements SourceRepository {
   @Override
   public List<Source> findAll() {
     return sourceCrudRepository.findAll().stream().map(SourceRepositoryAdapter::toDomain).toList();
+  }
+
+  @Override
+  public List<Source> findAllLeastRecentlyCollectedFirst() {
+    return sourceCrudRepository.findAllLeastRecentlyCollectedFirst().stream()
+        .map(SourceRepositoryAdapter::toDomain)
+        .toList();
+  }
+
+  @Override
+  public void recordCollectionAttempt(UUID id, boolean succeeded, Instant attemptedAt) {
+    sourceCrudRepository.recordCollectionAttempt(id, succeeded, attemptedAt);
   }
 
   private static SourceRow toRow(Source source) {

@@ -59,7 +59,8 @@ management:
         # `flyway` exposes the applied-migration status as a read-only
         # diagnostic (docs/03-technical-spec.md Section 25, observability
         # direction).
-        include: health,info,flyway
+        # `metrics` carries the pipeline's stage durations and outcomes (docs/adr/0019).
+        include: health,info,flyway,metrics
   endpoint:
     health:
       probes:
@@ -129,6 +130,24 @@ signal-engine:
       transient-initial-cooldown: ${AI_SUSPENSION_TRANSIENT_INITIAL_COOLDOWN:30s}
       transient-max-cooldown: ${AI_SUSPENSION_TRANSIENT_MAX_COOLDOWN:5m}
 
+  # The scheduled pipeline (docs/adr/0019-pipeline-automation.md): a cycle at startup, then one
+  # fixed-delay after each cycle ends. A stage starts no new unit of work once its budget is spent.
+  # Retries are bounded, with exponential backoff and jitter (docs/03-technical-spec.md Section
+  # 13.3). Provisional defaults (Q9, T9).
+  pipeline:
+    enabled: ${PIPELINE_ENABLED:true}
+    initial-delay: ${PIPELINE_INITIAL_DELAY:0s}
+    fixed-delay: ${PIPELINE_FIXED_DELAY:1h}
+    stage-budget: ${PIPELINE_STAGE_BUDGET:15m}
+    max-batches-per-stage: ${PIPELINE_MAX_BATCHES_PER_STAGE:5}
+    retry:
+      max-attempts: ${PIPELINE_RETRY_MAX_ATTEMPTS:3}
+      max-unexpected-failures: ${PIPELINE_RETRY_MAX_UNEXPECTED_FAILURES:5}
+      base-delay: ${PIPELINE_RETRY_BASE_DELAY:1h}
+      factor: ${PIPELINE_RETRY_FACTOR:2.0}
+      max-delay: ${PIPELINE_RETRY_MAX_DELAY:24h}
+      jitter-ratio: ${PIPELINE_RETRY_JITTER_RATIO:0.1}
+
   # Semantic near-duplicate grouping bounds (docs/adr/0007-semantic-deduplication-
   # relevant-information.md). candidate-pool-size caps the AI comparisons per item
   # (keeps it away from O(n^2)); neither value resolves the threshold question
@@ -151,6 +170,10 @@ signal-engine:
   # reconciliation sweep. Provisional defaults (T9).
   rag:
     indexing:
-      claim-lease: ${RAG_INDEXING_CLAIM_LEASE:15m}
+      claim-lease: ${RAG_INDEXING_CLAIM_LEASE:40m}
       max-failed-attempts: ${RAG_INDEXING_MAX_FAILED_ATTEMPTS:5}
       reconciliation-batch-limit: ${RAG_INDEXING_RECONCILIATION_BATCH_LIMIT:20}
+      # No AI call is started for a content once its indexing has run this long; a content that keeps
+      # exceeding it is kept and reported as blocked.
+      time-budget: ${RAG_INDEXING_TIME_BUDGET:30m}
+      max-time-budget-overruns: ${RAG_INDEXING_MAX_TIME_BUDGET_OVERRUNS:3}

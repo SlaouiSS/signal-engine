@@ -1,6 +1,7 @@
 package org.signalengine.application.signal;
 
 import java.util.List;
+import org.signalengine.application.pipeline.StageBudget;
 
 /**
  * Input port: bring the knowledge base index back in line with the items whose relevance was
@@ -15,10 +16,13 @@ import java.util.List;
 public interface ReconcileKnowledgeBaseIndexUseCase {
 
   /**
-   * Indexes one bounded page of items that are not completely and currently indexed. Items that
-   * keep failing are attempted a bounded number of times. The sweep stops at the first {@link
-   * IndexReconciliationReport.Outcome#SUSPENDED} report, because a suspended capability would fail
-   * every remaining item the same way.
+   * Indexes one bounded page of items that are not completely and currently indexed, starting no
+   * further item once {@code budget} is exhausted. Items that keep failing are attempted a bounded
+   * number of times; a suspended capability leaves an item untouched and does not stop the sweep.
    */
-  List<IndexReconciliationReport> reconcilePending();
+  List<IndexReconciliationReport> reconcilePending(StageBudget budget);
+
+  default List<IndexReconciliationReport> reconcilePending() {
+    return reconcilePending(StageBudget.unlimited());
+  }
 }

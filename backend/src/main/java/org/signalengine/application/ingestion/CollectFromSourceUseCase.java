@@ -2,13 +2,14 @@ package org.signalengine.application.ingestion;
 
 import java.util.List;
 import java.util.UUID;
+import org.signalengine.application.pipeline.StageBudget;
 
 /**
  * Input port: collect from configured sources and persist the collected content as Raw Information
  * Items (docs/08-ingestion.md Section 5, 23; docs/11-roadmap.md Phase 2 Task 5).
  *
- * <p>Callable explicitly so a future in-process scheduler (cadence is Q9) or a future manual
- * "collect now" trigger (Q8) can invoke it. This task adds no scheduler and no REST endpoint.
+ * <p>Called by each scheduled pipeline cycle (docs/adr/0019-pipeline-automation.md), and callable
+ * by a future manual "collect now" trigger (Q8); there is no REST endpoint for it.
  *
  * <p>Guarantees:
  *
@@ -25,5 +26,13 @@ public interface CollectFromSourceUseCase {
 
   CollectionReport collectFromSource(UUID sourceId);
 
-  List<CollectionReport> collectFromEnabledSources();
+  /**
+   * Collects the enabled sources, the least recently attempted first, starting no further source
+   * once {@code budget} is exhausted.
+   */
+  List<CollectionReport> collectFromEnabledSources(StageBudget budget);
+
+  default List<CollectionReport> collectFromEnabledSources() {
+    return collectFromEnabledSources(StageBudget.unlimited());
+  }
 }

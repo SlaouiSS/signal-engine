@@ -47,21 +47,48 @@ public interface RawInformationItemRepository {
       UUID sourceId, String sourceProvidedId, String contentHash);
 
   /**
-   * A bounded page of items in a given processing state — the pending work a pipeline stage picks
-   * up (docs/03-technical-spec.md Section 6.3, 10.3). Fair across sources: each source's own items
-   * are still returned in order of their last attempt, oldest first (an item that failed
-   * transiently goes behind the ones not attempted yet, see {@link #recordRetryableAttempt}), but
-   * the page interleaves round-robin across every source that has pending items, so one source with
-   * a very large backlog cannot monopolize the page and starve the others.
+   * A bounded page of items in a given processing state whose next attempt is due at {@code dueAt}
+   * — the pending work a pipeline stage picks up (docs/03-technical-spec.md Section 6.3, 10.3).
+   * Fair across sources: each source's own items are returned in order of their last attempt,
+   * oldest first (an item that was attempted goes behind the ones not attempted yet, see {@link
+   * #recordRetryableAttempt}), but the page interleaves round-robin across every source that has
+   * pending items, so one source with a very large backlog cannot monopolize the page and starve
+   * the others.
    */
-  List<RawInformationItem> findByProcessingState(String processingState, int limit);
+  List<RawInformationItem> findDueByProcessingState(
+      String processingState, java.time.Instant dueAt, int limit);
 
   /**
-   * A bounded page of items in any of the given processing states, oldest last attempt first — the
-   * pending work for a multi-step stage that resumes items part-way through
-   * (docs/03-technical-spec.md Section 13.6).
+   * Counts one failed attempt of the item's current stage and returns the new count for {@code
+   * kind}; empty if the item is no longer in {@code expectedState}. Every transition resets the
+   * counts.
    */
-  List<RawInformationItem> findByProcessingStateIn(List<String> processingStates, int limit);
+  java.util.OptionalInt countFailedAttempt(
+      UUID rawInformationItemId, String expectedState, FailedAttemptKind kind);
+
+  /**
+   * Records an attempt and makes the item wait until {@code nextAttemptAt}. Returns {@code false}
+   * if the item is no longer in {@code expectedState}.
+   */
+  boolean postponeNextAttempt(
+      UUID rawInformationItemId,
+      String expectedState,
+      java.time.Instant attemptedAt,
+      java.time.Instant nextAttemptAt);
+
+  /** Every item that was set aside by a failure that may not repeat (failed and retryable). */
+  List<RawInformationItem> findRetryableFailures();
+
+  /**
+   * Returns a retryable failure of {@code failedStage} to {@code resumeState}, with its failure
+   * details and counts cleared. Returns {@code false} if the item is no longer such a failure, so
+   * repeating the call changes nothing and a permanent failure is never requeued.
+   */
+  boolean requeueRetryableFailure(
+      UUID rawInformationItemId,
+      String failedStage,
+      String resumeState,
+      java.time.Instant requeuedAt);
 
   /**
    * The {@code limit} most recently collected items that are already associated with a Relevant

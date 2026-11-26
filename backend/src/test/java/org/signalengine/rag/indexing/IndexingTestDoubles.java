@@ -116,7 +116,7 @@ final class IndexingTestDoubles {
     final Map<String, Long> revisionByContent = new LinkedHashMap<>();
     final Set<String> claimedContents = new HashSet<>();
     final List<String> abandonedContents = new ArrayList<>();
-    final List<Boolean> abandonedAsFailedAttempt = new ArrayList<>();
+    final List<AbandonedIndexing.Cause> abandonmentCauses = new ArrayList<>();
     final Map<String, String> completionMarkers = new LinkedHashMap<>();
     final Map<String, ComponentDescriptor> markerChunkers = new LinkedHashMap<>();
     boolean failOnReplace;
@@ -177,10 +177,10 @@ final class IndexingTestDoubles {
     }
 
     @Override
-    public void abandon(IndexClaim claim, boolean countAsFailedAttempt) {
+    public void abandon(IndexClaim claim, AbandonedIndexing abandonment) {
       claimedContents.remove(claim.contentId());
       abandonedContents.add(claim.contentId());
-      abandonedAsFailedAttempt.add(countAsFailedAttempt);
+      abandonmentCauses.add(abandonment.cause());
     }
   }
 }

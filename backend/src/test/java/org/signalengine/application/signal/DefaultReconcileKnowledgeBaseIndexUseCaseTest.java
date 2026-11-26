@@ -40,7 +40,6 @@ import org.signalengine.rag.indexing.IndexingReport;
 class DefaultReconcileKnowledgeBaseIndexUseCaseTest {
 
   private static final Instant NOW = Instant.parse("2026-06-01T10:00:00Z");
-  private static final int MAX_FAILED_ATTEMPTS = 5;
   private static final int BATCH_LIMIT = 20;
 
   private final KnowledgeBaseIndexer indexer = mock(KnowledgeBaseIndexer.class);
@@ -50,13 +49,7 @@ class DefaultReconcileKnowledgeBaseIndexUseCaseTest {
 
   private final DefaultReconcileKnowledgeBaseIndexUseCase useCase =
       new DefaultReconcileKnowledgeBaseIndexUseCase(
-          indexer,
-          rawItems,
-          sources,
-          activity,
-          Clock.fixed(NOW, ZoneOffset.UTC),
-          MAX_FAILED_ATTEMPTS,
-          BATCH_LIMIT);
+          indexer, rawItems, sources, activity, Clock.fixed(NOW, ZoneOffset.UTC), BATCH_LIMIT);
 
   private final UUID sourceId = UUID.randomUUID();
   private final Source source =
@@ -84,7 +77,7 @@ class DefaultReconcileKnowledgeBaseIndexUseCaseTest {
   }
 
   private void awaitingIndexing(RawInformationItem... items) {
-    when(indexer.findItemIdsAwaitingIndexing(NOW, MAX_FAILED_ATTEMPTS, BATCH_LIMIT))
+    when(indexer.findItemIdsAwaitingIndexing(NOW, BATCH_LIMIT))
         .thenReturn(java.util.Arrays.stream(items).map(RawInformationItem::id).toList());
     when(sources.findById(sourceId)).thenReturn(Optional.of(source));
   }
@@ -210,8 +203,7 @@ class DefaultReconcileKnowledgeBaseIndexUseCaseTest {
   @Test
   void anItemWhoseSourceNoLongerExistsIsSkippedWithoutCallingTheIndexer() {
     RawInformationItem item = awaitingItem();
-    when(indexer.findItemIdsAwaitingIndexing(NOW, MAX_FAILED_ATTEMPTS, BATCH_LIMIT))
-        .thenReturn(List.of(item.id()));
+    when(indexer.findItemIdsAwaitingIndexing(NOW, BATCH_LIMIT)).thenReturn(List.of(item.id()));
     when(sources.findById(sourceId)).thenReturn(Optional.empty());
 
     List<IndexReconciliationReport> reports = useCase.reconcilePending();
@@ -225,8 +217,7 @@ class DefaultReconcileKnowledgeBaseIndexUseCaseTest {
   @Test
   void anItemThatDisappearedBetweenTheBacklogQueryAndTheSweepIsIgnored() {
     UUID vanished = UUID.randomUUID();
-    when(indexer.findItemIdsAwaitingIndexing(anyInstant(), anyInt(), anyInt()))
-        .thenReturn(List.of(vanished));
+    when(indexer.findItemIdsAwaitingIndexing(anyInstant(), anyInt())).thenReturn(List.of(vanished));
     when(rawItems.findById(vanished)).thenReturn(Optional.empty());
 
     assertThat(useCase.reconcilePending()).isEmpty();

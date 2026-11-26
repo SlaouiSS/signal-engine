@@ -247,7 +247,7 @@ class PersistenceIntegrationTest extends AbstractPersistenceIntegrationTest {
 
     // Source A alone has more than enough items to fill this batch; a plain global
     // "ORDER BY collected_at ASC LIMIT 10" would return ten A items and no B items at all.
-    List<RawInformationItem> batch = rawItems.findByProcessingState(state, 10);
+    List<RawInformationItem> batch = rawItems.findDueByProcessingState(state, Instant.now(), 10);
 
     assertThat(batch).hasSize(10); // the batch stays bounded
     assertThat(batch).extracting(RawInformationItem::id).containsAll(bIds); // B is not starved
@@ -272,7 +272,8 @@ class PersistenceIntegrationTest extends AbstractPersistenceIntegrationTest {
     // First batch: every one of source B's items must appear. Round-robin needs one slot per
     // source per round, and B needs 3 rounds to fully drain, so a limit of 6 (not 5) is the
     // smallest that guarantees all 3 of B's items land in this one batch alongside 3 of A's.
-    List<RawInformationItem> firstBatch = rawItems.findByProcessingState(state, 6);
+    List<RawInformationItem> firstBatch =
+        rawItems.findDueByProcessingState(state, Instant.now(), 6);
     assertThat(firstBatch).extracting(RawInformationItem::id).containsAll(bIds);
     assertThat(firstBatch).extracting(RawInformationItem::sourceId).contains(sourceA, sourceB);
 
@@ -287,7 +288,8 @@ class PersistenceIntegrationTest extends AbstractPersistenceIntegrationTest {
     // Source B is now fully drained (all 3 of its items were in the first batch and were moved
     // out); repeating the query must not starve or re-select it — it simply has nothing left, and
     // the queue correctly falls back to source A without error or repeats.
-    List<RawInformationItem> secondBatch = rawItems.findByProcessingState(state, 5);
+    List<RawInformationItem> secondBatch =
+        rawItems.findDueByProcessingState(state, Instant.now(), 5);
 
     assertThat(secondBatch).hasSize(5);
     assertThat(secondBatch).extracting(RawInformationItem::sourceId).containsOnly(sourceA);
@@ -304,7 +306,7 @@ class PersistenceIntegrationTest extends AbstractPersistenceIntegrationTest {
     RawInformationItem second = newNormalizedItem(onlySource, base.plusSeconds(5));
 
     List<RawInformationItem> batch =
-        rawItems.findByProcessingState(ProcessingState.NORMALIZED, 500);
+        rawItems.findDueByProcessingState(ProcessingState.NORMALIZED, Instant.now(), 500);
     List<UUID> mineInOrder =
         batch.stream()
             .map(RawInformationItem::id)
@@ -330,7 +332,7 @@ class PersistenceIntegrationTest extends AbstractPersistenceIntegrationTest {
     List<UUID> mine = List.of(a0.id(), a1.id(), a2.id(), b0.id(), b1.id(), c0.id());
 
     List<RawInformationItem> batch =
-        rawItems.findByProcessingState(ProcessingState.NORMALIZED, 500);
+        rawItems.findDueByProcessingState(ProcessingState.NORMALIZED, Instant.now(), 500);
     List<UUID> mineInOrder =
         batch.stream().map(RawInformationItem::id).filter(mine::contains).toList();
 
@@ -343,7 +345,7 @@ class PersistenceIntegrationTest extends AbstractPersistenceIntegrationTest {
   @Test
   void findByProcessingStateReturnsEmptyForAProcessingStateNothingIsEverIn() {
     List<RawInformationItem> batch =
-        rawItems.findByProcessingState("__no_item_ever_uses_this_state__", 10);
+        rawItems.findDueByProcessingState("__no_item_ever_uses_this_state__", Instant.now(), 10);
 
     assertThat(batch).isEmpty();
   }
@@ -355,7 +357,7 @@ class PersistenceIntegrationTest extends AbstractPersistenceIntegrationTest {
     RawInformationItem item = newNormalizedItem(sourceId, base);
 
     List<UUID> firstRun =
-        rawItems.findByProcessingState(ProcessingState.NORMALIZED, 500).stream()
+        rawItems.findDueByProcessingState(ProcessingState.NORMALIZED, Instant.now(), 500).stream()
             .map(RawInformationItem::id)
             .toList();
 
@@ -365,7 +367,7 @@ class PersistenceIntegrationTest extends AbstractPersistenceIntegrationTest {
 
     // Repeating the same query with nothing changed in between must return the same order.
     List<UUID> secondRun =
-        rawItems.findByProcessingState(ProcessingState.NORMALIZED, 500).stream()
+        rawItems.findDueByProcessingState(ProcessingState.NORMALIZED, Instant.now(), 500).stream()
             .map(RawInformationItem::id)
             .toList();
     assertThat(secondRun).isEqualTo(firstRun);

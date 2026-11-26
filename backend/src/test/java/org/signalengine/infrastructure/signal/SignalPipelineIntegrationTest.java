@@ -18,6 +18,9 @@ import org.signalengine.application.persistence.SignalRepository;
 import org.signalengine.application.persistence.SourceRepository;
 import org.signalengine.application.persistence.SummaryRepository;
 import org.signalengine.application.persistence.UnitOfWork;
+import org.signalengine.application.pipeline.ItemRetryScheduler;
+import org.signalengine.application.pipeline.RetryPolicy;
+import org.signalengine.application.signal.BlockedIndexing;
 import org.signalengine.application.signal.DefaultProcessRelevantInformationUseCase;
 import org.signalengine.application.signal.ImportanceAssessor;
 import org.signalengine.application.signal.ImportanceAssessor.ImportanceVerdict.Assessed;
@@ -108,11 +111,29 @@ class SignalPipelineIntegrationTest extends AbstractPersistenceIntegrationTest {
       }
 
       @Override
-      public java.util.List<UUID> findItemIdsAwaitingIndexing(
-          Instant now, int maxFailedAttempts, int limit) {
+      public java.util.List<UUID> findItemIdsAwaitingIndexing(Instant now, int limit) {
+        return java.util.List.of();
+      }
+
+      @Override
+      public java.util.List<BlockedIndexing> findBlockedIndexing() {
+        return java.util.List.of();
+      }
+
+      @Override
+      public java.util.List<UUID> requeueBlockedIndexing() {
         return java.util.List.of();
       }
     };
+  }
+
+  private ItemRetryScheduler retryScheduler() {
+    return new ItemRetryScheduler(
+        rawItems,
+        unitOfWork,
+        new RetryPolicy(
+            3, 5, java.time.Duration.ofHours(1), 2, java.time.Duration.ofHours(24), 0, () -> 0),
+        Clock.fixed(Instant.parse("2026-04-01T09:00:00Z"), ZoneOffset.UTC));
   }
 
   private ProcessRelevantInformationUseCase useCase() {
@@ -130,6 +151,7 @@ class SignalPipelineIntegrationTest extends AbstractPersistenceIntegrationTest {
         knowledgeBaseIndexer(),
         activity,
         unitOfWork,
+        retryScheduler(),
         Clock.fixed(Instant.parse("2026-04-01T09:00:00Z"), ZoneOffset.UTC),
         50);
   }

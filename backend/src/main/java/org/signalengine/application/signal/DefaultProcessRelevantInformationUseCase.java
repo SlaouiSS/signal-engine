@@ -3,17 +3,21 @@ package org.signalengine.application.signal;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import org.signalengine.application.InvalidInputException;
 import org.signalengine.application.ai.AiCapabilityFailureException;
 import org.signalengine.application.ai.AiError;
 import org.signalengine.application.persistence.ActivityRecordRepository;
 import org.signalengine.application.persistence.AreaOfInterestRepository;
+import org.signalengine.application.persistence.FailedAttemptKind;
 import org.signalengine.application.persistence.InterestRepository;
 import org.signalengine.application.persistence.RawInformationItemRepository;
 import org.signalengine.application.persistence.RelevantInformationRepository;
@@ -21,6 +25,9 @@ import org.signalengine.application.persistence.SignalRepository;
 import org.signalengine.application.persistence.SourceRepository;
 import org.signalengine.application.persistence.SummaryRepository;
 import org.signalengine.application.persistence.UnitOfWork;
+import org.signalengine.application.pipeline.ItemRetryScheduler;
+import org.signalengine.application.pipeline.PipelineStage;
+import org.signalengine.application.pipeline.StageBudget;
 import org.signalengine.application.signal.ImportanceAssessor.ImportanceVerdict;
 import org.signalengine.application.signal.RelevanceAssessor.AreaContext;
 import org.signalengine.application.signal.RelevanceAssessor.InterestContext;
@@ -64,9 +71,6 @@ public final class DefaultProcessRelevantInformationUseCase
 
   private static final Logger log =
       LoggerFactory.getLogger(DefaultProcessRelevantInformationUseCase.class);
-  private static final String RELEVANCE_STAGE = "relevance_assessment";
-  private static final String IMPORTANCE_STAGE = "importance_assessment";
-  private static final String SUMMARY_STAGE = "summarization";
   private static final int MAX_SUMMARY_SOURCES = 10;
 
   private final RelevantInformationRepository relevantInformationRepository;
@@ -82,6 +86,7 @@ public final class DefaultProcessRelevantInformationUseCase
   private final KnowledgeBaseIndexer knowledgeBaseIndexer;
   private final ActivityRecordRepository activityRecordRepository;
   private final UnitOfWork unitOfWork;
+  private final ItemRetryScheduler itemRetryScheduler;
   private final Clock clock;
   private final int batchLimit;
 
@@ -99,6 +104,7 @@ public final class DefaultProcessRelevantInformationUseCase
       KnowledgeBaseIndexer knowledgeBaseIndexer,
       ActivityRecordRepository activityRecordRepository,
       UnitOfWork unitOfWork,
+      ItemRetryScheduler itemRetryScheduler,
       Clock clock,
       int batchLimit) {
     this.relevantInformationRepository = relevantInformationRepository;
@@ -114,12 +120,17 @@ public final class DefaultProcessRelevantInformationUseCase
     this.knowledgeBaseIndexer = knowledgeBaseIndexer;
     this.activityRecordRepository = activityRecordRepository;
     this.unitOfWork = unitOfWork;
+    this.itemRetryScheduler = itemRetryScheduler;
     this.clock = clock;
     this.batchLimit = batchLimit;
   }
 
   @Override
   public ProcessingReport process(UUID relevantInformationId) {
+    return process(relevantInformationId, StageBudget.unlimited());
+  }
+
+  private ProcessingReport process(UUID relevantInformationId, StageBudget budget) {
     RelevantInformation relevantInformation =
         relevantInformationRepository
             .findById(relevantInformationId)
@@ -135,7 +146,8 @@ public final class DefaultProcessRelevantInformationUseCase
     while (true) {
       Optional<ProcessingReport> terminal =
           switch (anchor.processingState().state()) {
-            case ProcessingState.DEDUPLICATED -> assessRelevance(anchor, relevantInformation);
+            case ProcessingState.DEDUPLICATED ->
+                assessRelevance(anchor, relevantInformation, budget);
             case ProcessingState.RELEVANT -> assessImportance(anchor, relevantInformation);
             case ProcessingState.SIGNAL_CREATED ->
                 summariseSignal(anchor, relevantInformation, contributingItems);
@@ -151,6 +163,10 @@ public final class DefaultProcessRelevantInformationUseCase
           anchorOf(
               rawInformationItemRepository.findByRelevantInformationId(relevantInformationId),
               relevantInformationId);
+      if (budget.exhausted()) {
+        // The step just taken is committed; the next one waits for the next run.
+        return ProcessingReport.skipped(relevantInformationId, anchor.processingState().state());
+      }
       // Re-read: assessRelevance persists a new RelevantInformation (reason, matched areas/
       // interests) via withRelevance(...), but that returns a new immutable instance rather than
       // mutating this one. Without re-reading, the next iteration's assessImportance would see the
@@ -168,16 +184,21 @@ public final class DefaultProcessRelevantInformationUseCase
   }
 
   /**
-   * Processes one bounded page of pending records. A record that needs a suspended capability is
-   * left untouched (and moved behind the others); it costs one lookup, not a call, so the sweep
-   * carries on: the records that wait for <em>another</em> capability — relevance, importance and
-   * summarisation are three — still progress. One activity record summarises the suspension.
+   * Processes one bounded page of pending records <em>per processing state</em>, because each state
+   * waits for a different capability. A record that needs a suspended capability is left untouched
+   * and costs one lookup, not a call; it can fill the page of its own state, never the pages of the
+   * states that wait for <em>another</em> capability. The pages are interleaved, so a budget that
+   * runs out does not leave the same states behind every time. One activity record summarises the
+   * suspension.
    */
   @Override
-  public List<ProcessingReport> processPending() {
+  public List<ProcessingReport> processPending(StageBudget budget) {
     List<ProcessingReport> reports = new ArrayList<>();
     for (UUID relevantInformationId : pendingRelevantInformationIds()) {
-      reports.add(processOneIsolatingFailure(relevantInformationId));
+      if (budget.exhausted()) {
+        break;
+      }
+      reports.add(processOneIsolatingFailure(relevantInformationId, budget));
     }
     recordSuspensionSummary(reports);
     return List.copyOf(reports);
@@ -200,38 +221,91 @@ public final class DefaultProcessRelevantInformationUseCase
   }
 
   private List<UUID> pendingRelevantInformationIds() {
-    return rawInformationItemRepository
-        .findByProcessingStateIn(
-            List.of(
+    Instant now = clock.instant();
+    List<List<RawInformationItem>> pagesByState =
+        Stream.of(
                 ProcessingState.DEDUPLICATED,
                 ProcessingState.RELEVANT,
-                ProcessingState.SIGNAL_CREATED),
-            batchLimit)
-        .stream()
+                ProcessingState.SIGNAL_CREATED)
+            .map(
+                state ->
+                    rawInformationItemRepository.findDueByProcessingState(state, now, batchLimit))
+            .toList();
+    return interleaved(pagesByState).stream()
         .map(RawInformationItem::relevantInformationId)
         .filter(java.util.Objects::nonNull)
         .distinct()
         .toList();
   }
 
-  private ProcessingReport processOneIsolatingFailure(UUID relevantInformationId) {
+  /**
+   * The first item of every page, then the second of every page, and so on; within each round the
+   * one that has waited longest goes first. Every state's head is therefore reached early, and with
+   * room for a single unit the longest-waiting head gets it.
+   */
+  private static List<RawInformationItem> interleaved(List<List<RawInformationItem>> pages) {
+    int longest = pages.stream().mapToInt(List::size).max().orElse(0);
+    return IntStream.range(0, longest)
+        .boxed()
+        .flatMap(
+            position ->
+                pages.stream()
+                    .filter(page -> position < page.size())
+                    .map(page -> page.get(position))
+                    .sorted(Comparator.comparing(item -> item.processingState().updatedAt())))
+        .toList();
+  }
+
+  private ProcessingReport processOneIsolatingFailure(
+      UUID relevantInformationId, StageBudget budget) {
     try {
-      return process(relevantInformationId);
+      return process(relevantInformationId, budget);
     } catch (RuntimeException failure) {
       log.error(
           "Unexpected failure processing relevant information {}", relevantInformationId, failure);
       recordActivity(
           relevantInformationId, null, "failure", "unexpected error: " + failure.getMessage());
+      countUnexpectedFailure(relevantInformationId, failure);
       return ProcessingReport.assessmentFailed(relevantInformationId, "unexpected error");
+    }
+  }
+
+  /**
+   * An unexpected error uses no retry budget, but it is counted, so a deterministic defect cannot
+   * be retried for ever. If even the counting fails (the database is away), the next run finds the
+   * item as it was.
+   */
+  private void countUnexpectedFailure(UUID relevantInformationId, RuntimeException failure) {
+    if (Thread.currentThread().isInterrupted()) {
+      return;
+    }
+    try {
+      RawInformationItem anchor =
+          anchorOf(
+              rawInformationItemRepository.findByRelevantInformationId(relevantInformationId),
+              relevantInformationId);
+      itemRetryScheduler.recordFailedAttempt(
+          anchor.id(),
+          relevantInformationId,
+          PipelineStage.waitingIn(anchor.processingState().state()),
+          FailedAttemptKind.UNEXPECTED,
+          "unexpected error: " + failure.getMessage());
+    } catch (RuntimeException countingFailure) {
+      log.warn(
+          "Could not count the failure of relevant information {}",
+          relevantInformationId,
+          countingFailure);
     }
   }
 
   // --- step: relevance ------------------------------------------------
 
   private Optional<ProcessingReport> assessRelevance(
-      RawInformationItem anchor, RelevantInformation relevantInformation) {
+      RawInformationItem anchor, RelevantInformation relevantInformation, StageBudget budget) {
     if (isBlank(anchor.normalizedContent())) {
-      return Optional.of(failStage(anchor, RELEVANCE_STAGE, "the item has no content to assess"));
+      return Optional.of(
+          failStage(
+              anchor, PipelineStage.RELEVANCE_ASSESSMENT, "the item has no content to assess"));
     }
 
     RelevanceVerdict verdict =
@@ -241,12 +315,13 @@ public final class DefaultProcessRelevantInformationUseCase
 
     return switch (verdict) {
       case RelevanceVerdict.AssessmentUnavailable unavailable ->
-          Optional.of(handleAiFailure(anchor, RELEVANCE_STAGE, unavailable.error()));
+          Optional.of(
+              handleAiFailure(anchor, PipelineStage.RELEVANCE_ASSESSMENT, unavailable.error()));
       case RelevanceVerdict.Assessed assessed -> {
         if (!assessed.relevant()) {
           yield Optional.of(recordNotRelevant(anchor, relevantInformation, assessed.reason()));
         }
-        yield recordRelevant(anchor, relevantInformation, assessed);
+        yield recordRelevant(anchor, relevantInformation, assessed, budget);
       }
     };
   }
@@ -270,7 +345,8 @@ public final class DefaultProcessRelevantInformationUseCase
   private Optional<ProcessingReport> recordRelevant(
       RawInformationItem anchor,
       RelevantInformation relevantInformation,
-      RelevanceVerdict.Assessed assessed) {
+      RelevanceVerdict.Assessed assessed,
+      StageBudget budget) {
     ProcessingReport report =
         unitOfWork.inTransaction(
             () -> {
@@ -293,7 +369,10 @@ public final class DefaultProcessRelevantInformationUseCase
                       + "; awaiting importance assessment");
               return null; // advanced — continue the pipeline
             });
-    if (report == null) {
+    // No indexing starts once the stage budget is spent: the reconciliation stage, which has its
+    // own
+    // budget, indexes what has no completion marker.
+    if (report == null && !budget.exhausted()) {
       // Outside the transaction: indexing calls the embedding capability over HTTP, which must
       // never run inside a database transaction (docs/03-technical-spec.md Section 13.8). The
       // DEDUPLICATED -> RELEVANT transition above already happened exactly once (compare-and-swap),
@@ -367,7 +446,9 @@ public final class DefaultProcessRelevantInformationUseCase
   private Optional<ProcessingReport> assessImportance(
       RawInformationItem anchor, RelevantInformation relevantInformation) {
     if (isBlank(anchor.normalizedContent())) {
-      return Optional.of(failStage(anchor, IMPORTANCE_STAGE, "the item has no content to assess"));
+      return Optional.of(
+          failStage(
+              anchor, PipelineStage.IMPORTANCE_ASSESSMENT, "the item has no content to assess"));
     }
 
     ImportanceVerdict verdict =
@@ -379,7 +460,8 @@ public final class DefaultProcessRelevantInformationUseCase
 
     return switch (verdict) {
       case ImportanceVerdict.AssessmentUnavailable unavailable ->
-          Optional.of(handleAiFailure(anchor, IMPORTANCE_STAGE, unavailable.error()));
+          Optional.of(
+              handleAiFailure(anchor, PipelineStage.IMPORTANCE_ASSESSMENT, unavailable.error()));
       case ImportanceVerdict.Assessed assessed -> {
         if (!assessed.importantEnough()) {
           yield Optional.of(recordNotImportant(anchor, relevantInformation, assessed.reason()));
@@ -457,7 +539,8 @@ public final class DefaultProcessRelevantInformationUseCase
           markSummarised(anchor, relevantInformation, signal, "summary already present"));
     }
     if (isBlank(anchor.normalizedContent())) {
-      return Optional.of(failStage(anchor, SUMMARY_STAGE, "the item has no content to summarise"));
+      return Optional.of(
+          failStage(anchor, PipelineStage.SUMMARIZATION, "the item has no content to summarise"));
     }
 
     SummaryOutcome outcome =
@@ -478,13 +561,16 @@ public final class DefaultProcessRelevantInformationUseCase
             "failure",
             withOutputInvalidDiagnostics(
                 "summary generation failed (" + error.code() + "): " + error.message(), error));
+        if (error.rejectsThisInput()) {
+          yield Optional.of(setAside(anchor, PipelineStage.SUMMARIZATION, error));
+        }
         if (error.retryable()) {
-          deferBehindUnattemptedItems(anchor);
+          countTransientFailure(anchor, PipelineStage.SUMMARIZATION, error);
           yield Optional.of(
               ProcessingReport.signalSummaryPending(
                   relevantInformation.id(), signal.id(), "retryable: " + error.code()));
         }
-        yield Optional.of(failStage(anchor, SUMMARY_STAGE, error.message()));
+        yield Optional.of(failStage(anchor, PipelineStage.SUMMARIZATION, error.message()));
       }
       case SummaryOutcome.Generated generated ->
           Optional.of(persistSummary(anchor, relevantInformation, signal, generated));
@@ -536,7 +622,8 @@ public final class DefaultProcessRelevantInformationUseCase
 
   // --- shared -----------------------------------------------------
 
-  private ProcessingReport handleAiFailure(RawInformationItem anchor, String stage, AiError error) {
+  private ProcessingReport handleAiFailure(
+      RawInformationItem anchor, PipelineStage stage, AiError error) {
     if (error.capabilitySuspended()) {
       deferIfSuspect(anchor, error);
       return ProcessingReport.suspended(anchor.relevantInformationId(), error.message());
@@ -546,13 +633,29 @@ public final class DefaultProcessRelevantInformationUseCase
         anchor.id(),
         "failure",
         withOutputInvalidDiagnostics(
-            stage + " failed (" + error.code() + "): " + error.message(), error));
+            stage.stageName() + " failed (" + error.code() + "): " + error.message(), error));
+    if (error.rejectsThisInput()) {
+      return setAside(anchor, stage, error);
+    }
     if (error.retryable()) {
-      deferBehindUnattemptedItems(anchor);
+      countTransientFailure(anchor, stage, error);
       return ProcessingReport.assessmentFailed(
           anchor.relevantInformationId(), "retryable: " + error.code());
     }
     return failStage(anchor, stage, error.message());
+  }
+
+  /**
+   * Sets aside an item whose input the stage cannot process: {@code failed} but retryable, so its
+   * content is kept, the diagnostic says why, and an operator can requeue it. Never truncated,
+   * never split.
+   */
+  private ProcessingReport setAside(
+      RawInformationItem anchor, PipelineStage stage, AiError rejection) {
+    String reason = "set aside, the content cannot be processed as it is: " + rejection.message();
+    markFailed(anchor, stage, reason, true);
+    return ProcessingReport.assessmentFailed(
+        anchor.relevantInformationId(), "set aside: " + reason);
   }
 
   /**
@@ -567,12 +670,27 @@ public final class DefaultProcessRelevantInformationUseCase
   }
 
   /**
-   * Keeps an item that could not be processed — a transient failure, or a request the provider
-   * rejected — from staying at the head of every sweep: the next sweep tries the others first.
+   * Keeps an item whose request the provider rejected from staying at the head of every sweep: the
+   * next sweep tries the others first.
    */
   private void deferBehindUnattemptedItems(RawInformationItem anchor) {
     rawInformationItemRepository.recordRetryableAttempt(
         anchor.id(), anchor.processingState().state(), clock.instant());
+  }
+
+  /**
+   * Uses one attempt of the stage's retry budget. A call cut short by a shutdown is not an attempt.
+   */
+  private void countTransientFailure(
+      RawInformationItem anchor, PipelineStage stage, AiError error) {
+    if (!Thread.currentThread().isInterrupted()) {
+      itemRetryScheduler.recordFailedAttempt(
+          anchor.id(),
+          anchor.relevantInformationId(),
+          stage,
+          FailedAttemptKind.TRANSIENT,
+          error.code() + ": " + error.message());
+    }
   }
 
   /**
@@ -593,18 +711,24 @@ public final class DefaultProcessRelevantInformationUseCase
     return message + " | details=" + error.details();
   }
 
-  private ProcessingReport failStage(RawInformationItem anchor, String stage, String reason) {
+  private ProcessingReport failStage(
+      RawInformationItem anchor, PipelineStage stage, String reason) {
+    markFailed(anchor, stage, reason, false);
+    return ProcessingReport.assessmentFailed(
+        anchor.relevantInformationId(), "non-retryable: " + reason);
+  }
+
+  private void markFailed(
+      RawInformationItem anchor, PipelineStage stage, String reason, boolean requeueable) {
     unitOfWork.inTransaction(
         () -> {
           rawInformationItemRepository.transitionFromState(
               anchor.id(),
               anchor.processingState().state(),
-              ProcessingState.failed(stage, reason, false, clock.instant()),
+              ProcessingState.failed(stage.stageName(), reason, requeueable, clock.instant()),
               anchor.relevantInformationId());
           return null;
         });
-    return ProcessingReport.assessmentFailed(
-        anchor.relevantInformationId(), "non-retryable: " + reason);
   }
 
   private boolean transition(

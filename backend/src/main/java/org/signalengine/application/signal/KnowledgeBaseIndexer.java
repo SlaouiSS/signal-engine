@@ -46,9 +46,18 @@ public interface KnowledgeBaseIndexer {
   /**
    * A bounded page of the ids of raw information items whose relevance is confirmed but whose
    * indexing is not complete and current: no completion marker, or a marker built from other
-   * content or another chunker configuration. Items another run is indexing right now, and items
-   * that already failed {@code maxFailedAttempts} times, are left out. An earlier indexing is never
+   * content or another chunker configuration. Items another run is indexing right now, items
+   * waiting for their next attempt, and blocked items are left out. An earlier indexing is never
    * assumed to be complete.
    */
-  List<UUID> findItemIdsAwaitingIndexing(Instant now, int maxFailedAttempts, int limit);
+  List<UUID> findItemIdsAwaitingIndexing(Instant now, int limit);
+
+  /** The items whose indexing is no longer attempted, oldest first. */
+  List<BlockedIndexing> findBlockedIndexing();
+
+  /**
+   * Makes every recoverable blocked indexing eligible again, with its counts cleared, and returns
+   * the ids of those items. Repeating the call changes nothing.
+   */
+  List<UUID> requeueBlockedIndexing();
 }

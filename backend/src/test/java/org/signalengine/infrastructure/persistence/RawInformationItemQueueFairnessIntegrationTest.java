@@ -62,32 +62,18 @@ class RawInformationItemQueueFairnessIntegrationTest extends AbstractPersistence
     RawInformationItem newer =
         pendingItem(sourceId, ProcessingState.NORMALIZED, base.plusSeconds(60));
 
-    List<UUID> before = ids(rawItems.findByProcessingState(ProcessingState.NORMALIZED, 500));
+    List<UUID> before =
+        ids(rawItems.findDueByProcessingState(ProcessingState.NORMALIZED, Instant.now(), 500));
     assertThat(before.indexOf(oldest.id())).isLessThan(before.indexOf(newer.id()));
 
     boolean recorded =
         rawItems.recordRetryableAttempt(
             oldest.id(), ProcessingState.NORMALIZED, base.plusSeconds(3600));
 
-    List<UUID> after = ids(rawItems.findByProcessingState(ProcessingState.NORMALIZED, 500));
+    List<UUID> after =
+        ids(rawItems.findDueByProcessingState(ProcessingState.NORMALIZED, Instant.now(), 500));
     assertThat(recorded).isTrue();
     assertThat(after.indexOf(newer.id())).isLessThan(after.indexOf(oldest.id()));
-  }
-
-  @Test
-  void aTransientlyFailedItemMovesBehindTheItemsNotAttemptedYetInAMultiStatePage() {
-    UUID sourceId = sourceId();
-    Instant base = Instant.parse("2026-01-01T00:00:00Z");
-    RawInformationItem oldest = pendingItem(sourceId, ProcessingState.DEDUPLICATED, base);
-    RawInformationItem newer =
-        pendingItem(sourceId, ProcessingState.RELEVANT, base.plusSeconds(60));
-    List<String> states = List.of(ProcessingState.DEDUPLICATED, ProcessingState.RELEVANT);
-
-    rawItems.recordRetryableAttempt(
-        oldest.id(), ProcessingState.DEDUPLICATED, base.plusSeconds(3600));
-
-    List<UUID> page = ids(rawItems.findByProcessingStateIn(states, 500));
-    assertThat(page.indexOf(newer.id())).isLessThan(page.indexOf(oldest.id()));
   }
 
   @Test

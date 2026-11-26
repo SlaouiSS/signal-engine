@@ -8,8 +8,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.UUID;
 import java.util.function.Supplier;
+import org.signalengine.application.persistence.FailedAttemptKind;
 import org.signalengine.application.persistence.RawInformationItemRepository;
 import org.signalengine.application.persistence.RelevantInformationRepository;
 import org.signalengine.application.persistence.SignalRepository;
@@ -96,23 +98,54 @@ final class InMemoryPipelineRepositories {
       return Optional.empty();
     }
 
+    final Map<UUID, Instant> nextAttemptAt = new LinkedHashMap<>();
+    final Map<UUID, Integer> transientFailures = new LinkedHashMap<>();
+    final Map<UUID, Integer> unexpectedFailures = new LinkedHashMap<>();
+
     @Override
-    public List<RawInformationItem> findByProcessingState(String processingState, int limit) {
+    public List<RawInformationItem> findDueByProcessingState(
+        String processingState, Instant dueAt, int limit) {
       return byId.values().stream()
           .filter(i -> processingState.equals(i.processingState().state()))
+          .filter(i -> !nextAttemptAt.getOrDefault(i.id(), dueAt).isAfter(dueAt))
           .sorted(Comparator.comparing(i -> i.processingState().updatedAt()))
           .limit(limit)
           .toList();
     }
 
     @Override
-    public List<RawInformationItem> findByProcessingStateIn(
-        List<String> processingStates, int limit) {
+    public OptionalInt countFailedAttempt(
+        UUID rawInformationItemId, String expectedState, FailedAttemptKind kind) {
+      RawInformationItem current = byId.get(rawInformationItemId);
+      if (current == null || !expectedState.equals(current.processingState().state())) {
+        return OptionalInt.empty();
+      }
+      Map<UUID, Integer> failures =
+          kind == FailedAttemptKind.TRANSIENT ? transientFailures : unexpectedFailures;
+      return OptionalInt.of(failures.merge(rawInformationItemId, 1, Integer::sum));
+    }
+
+    @Override
+    public boolean postponeNextAttempt(
+        UUID rawInformationItemId, String expectedState, Instant attemptedAt, Instant nextAttempt) {
+      boolean moved = recordRetryableAttempt(rawInformationItemId, expectedState, attemptedAt);
+      if (moved) {
+        nextAttemptAt.put(rawInformationItemId, nextAttempt);
+      }
+      return moved;
+    }
+
+    @Override
+    public List<RawInformationItem> findRetryableFailures() {
       return byId.values().stream()
-          .filter(i -> processingStates.contains(i.processingState().state()))
-          .sorted(Comparator.comparing(i -> i.processingState().updatedAt()))
-          .limit(limit)
+          .filter(i -> Boolean.TRUE.equals(i.processingState().failureRetryable()))
           .toList();
+    }
+
+    @Override
+    public boolean requeueRetryableFailure(
+        UUID rawInformationItemId, String failedStage, String resumeState, Instant requeuedAt) {
+      throw new UnsupportedOperationException("covered against PostgreSQL");
     }
 
     @Override
@@ -130,6 +163,9 @@ final class InMemoryPipelineRepositories {
       if (current == null || !expectedState.equals(current.processingState().state())) {
         return false;
       }
+      nextAttemptAt.remove(rawInformationItemId);
+      transientFailures.remove(rawInformationItemId);
+      unexpectedFailures.remove(rawInformationItemId);
       byId.put(
           rawInformationItemId,
           new RawInformationItem(

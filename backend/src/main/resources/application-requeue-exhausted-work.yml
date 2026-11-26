@@ -1,0 +1,12 @@
+# Local operator command (docs/adr/0019-pipeline-automation.md): lists, or with --apply requeues, the
+# work set aside after its attempts ran out. No web server, no pipeline run, no migration: it only
+# acts on a database the running backend already owns.
+spring:
+  main:
+    web-application-type: none
+  flyway:
+    enabled: false
+
+signal-engine:
+  pipeline:
+    enabled: false

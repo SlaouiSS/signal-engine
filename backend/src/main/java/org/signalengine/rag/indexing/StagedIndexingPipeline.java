@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.function.Predicate;
+import java.util.function.Function;
 import org.signalengine.rag.ComponentDescriptor;
 import org.signalengine.rag.RagComponentType;
 import org.signalengine.rag.chunking.Chunker;
@@ -38,13 +38,12 @@ import org.signalengine.rag.embedding.EmbeddingResult;
  * that lost its claim in the meantime writes nothing.
  *
  * <p>Error handling is explicit. A failure while preparing aborts the content: the claim is
- * abandoned (counted as a failed attempt unless the configured predicate says the failure is not
- * the content's fault) and the exception propagates &mdash; an {@link
- * org.signalengine.rag.embedding.EmbeddingException} for embedding, an {@link IndexingException}
- * for a contract violation or when chunking produces no passage at all (there is nothing to mark as
- * indexed, so that is never reported as a success). A content already claimed by another run, or
- * whose claim was superseded before the result could be stored, is reported as <em>skipped</em>,
- * not as an error. Nothing is swallowed.
+ * abandoned (the configured classifier says what the failure costs the content) and the exception
+ * propagates &mdash; an {@link org.signalengine.rag.embedding.EmbeddingException} for embedding, an
+ * {@link IndexingException} for a contract violation or when chunking produces no passage at all
+ * (there is nothing to mark as indexed, so that is never reported as a success). A content already
+ * claimed by another run, or whose claim was superseded before the result could be stored, is
+ * reported as <em>skipped</em>, not as an error. Nothing is swallowed.
  */
 public final class StagedIndexingPipeline implements IndexingPipeline {
 
@@ -55,14 +54,14 @@ public final class StagedIndexingPipeline implements IndexingPipeline {
   private final Chunker chunker;
   private final EmbeddingModel embeddingModel;
   private final IndexedPassageStore store;
-  private final Predicate<RuntimeException> failureCountsAsAttempt;
+  private final Function<RuntimeException, AbandonedIndexing> failureClassifier;
 
   private StagedIndexingPipeline(Builder builder) {
     this.chunker = Objects.requireNonNull(builder.chunker, "chunker is required");
     this.embeddingModel =
         Objects.requireNonNull(builder.embeddingModel, "embeddingModel is required");
     this.store = Objects.requireNonNull(builder.store, "store is required");
-    this.failureCountsAsAttempt = builder.failureCountsAsAttempt;
+    this.failureClassifier = builder.failureClassifier;
   }
 
   public static Builder builder() {
@@ -91,7 +90,7 @@ public final class StagedIndexingPipeline implements IndexingPipeline {
     } catch (StaleIndexClaimException superseded) {
       return skipped(content, superseded.getMessage() + "; nothing written");
     } catch (RuntimeException failure) {
-      store.abandon(claim.get(), failureCountsAsAttempt.test(failure));
+      store.abandon(claim.get(), failureClassifier.apply(failure));
       throw failure;
     }
   }
@@ -180,7 +179,12 @@ public final class StagedIndexingPipeline implements IndexingPipeline {
     private Chunker chunker;
     private EmbeddingModel embeddingModel;
     private IndexedPassageStore store;
-    private Predicate<RuntimeException> failureCountsAsAttempt = failure -> true;
+    private Function<RuntimeException, AbandonedIndexing> failureClassifier =
+        failure ->
+            new AbandonedIndexing(
+                AbandonedIndexing.Cause.FAILED_ATTEMPT,
+                false,
+                String.valueOf(failure.getMessage()));
 
     private Builder() {}
 
@@ -200,11 +204,11 @@ public final class StagedIndexingPipeline implements IndexingPipeline {
     }
 
     /**
-     * Which failures count against a content as a failed attempt (default: all). A failure that is
-     * not the content's fault &mdash; a capability suspended for everyone &mdash; should not.
+     * What each failure costs the content (default: every failure is a failed attempt that will not
+     * succeed on its own).
      */
-    public Builder failureCountsAsAttempt(Predicate<RuntimeException> value) {
-      this.failureCountsAsAttempt = Objects.requireNonNull(value, "predicate must not be null");
+    public Builder failureClassifier(Function<RuntimeException, AbandonedIndexing> value) {
+      this.failureClassifier = Objects.requireNonNull(value, "classifier must not be null");
       return this;
     }
 

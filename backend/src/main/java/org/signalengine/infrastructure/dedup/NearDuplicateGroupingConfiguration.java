@@ -10,6 +10,7 @@ import org.signalengine.application.persistence.ActivityRecordRepository;
 import org.signalengine.application.persistence.RawInformationItemRepository;
 import org.signalengine.application.persistence.RelevantInformationRepository;
 import org.signalengine.application.persistence.UnitOfWork;
+import org.signalengine.application.pipeline.ItemRetryScheduler;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -35,6 +36,7 @@ class NearDuplicateGroupingConfiguration {
       NearDuplicateAssessor nearDuplicateAssessor,
       ActivityRecordRepository activityRecordRepository,
       UnitOfWork unitOfWork,
+      ItemRetryScheduler itemRetryScheduler,
       NearDuplicateGroupingProperties properties) {
     return new DefaultGroupIntoRelevantInformationUseCase(
         rawInformationItemRepository,
@@ -42,6 +44,7 @@ class NearDuplicateGroupingConfiguration {
         nearDuplicateAssessor,
         activityRecordRepository,
         unitOfWork,
+        itemRetryScheduler,
         Clock.systemUTC(),
         properties.candidatePoolSize(),
         properties.batchLimit());

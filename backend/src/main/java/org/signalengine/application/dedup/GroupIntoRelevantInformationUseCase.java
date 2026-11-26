@@ -2,6 +2,7 @@ package org.signalengine.application.dedup;
 
 import java.util.List;
 import java.util.UUID;
+import org.signalengine.application.pipeline.StageBudget;
 
 /**
  * Input port: place a normalised {@link org.signalengine.domain.RawInformationItem} into a {@link
@@ -17,6 +18,13 @@ public interface GroupIntoRelevantInformationUseCase {
 
   GroupingReport groupRawInformationItem(UUID rawInformationItemId);
 
-  /** Process a bounded batch of items still awaiting near-duplicate assessment. */
-  List<GroupingReport> groupNormalizedRawInformationItems();
+  /**
+   * Process a bounded batch of items still awaiting near-duplicate assessment, starting no further
+   * item once {@code budget} is exhausted.
+   */
+  List<GroupingReport> groupNormalizedRawInformationItems(StageBudget budget);
+
+  default List<GroupingReport> groupNormalizedRawInformationItems() {
+    return groupNormalizedRawInformationItems(StageBudget.unlimited());
+  }
 }

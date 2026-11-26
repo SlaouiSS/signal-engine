@@ -111,7 +111,7 @@ class StagedIndexingPipelineTest {
         .isInstanceOf(EmbeddingException.class);
     assertThat(store.entries).isEmpty();
     assertThat(store.abandonedContents).containsExactly("c-1");
-    assertThat(store.abandonedAsFailedAttempt).containsExactly(true);
+    assertThat(store.abandonmentCauses).containsExactly(AbandonedIndexing.Cause.FAILED_ATTEMPT);
   }
 
   @Test
@@ -122,12 +122,15 @@ class StagedIndexingPipelineTest {
             .chunker(new SplittingChunker("1"))
             .embeddingModel(embeddingModel)
             .store(store)
-            .failureCountsAsAttempt(failure -> false)
+            .failureClassifier(
+                failure ->
+                    new AbandonedIndexing(
+                        AbandonedIndexing.Cause.NOT_THE_CONTENT, true, "suspended"))
             .build();
 
     assertThatThrownBy(() -> pipeline.index(threeBlocks())).isInstanceOf(EmbeddingException.class);
 
-    assertThat(store.abandonedAsFailedAttempt).containsExactly(false);
+    assertThat(store.abandonmentCauses).containsExactly(AbandonedIndexing.Cause.NOT_THE_CONTENT);
   }
 
   @Test
@@ -218,9 +221,9 @@ class StagedIndexingPipelineTest {
         .hasMessageContaining("no passage");
 
     assertThat(store.completionMarkers).as("no marker: the content is not indexed").isEmpty();
-    assertThat(store.abandonedAsFailedAttempt)
+    assertThat(store.abandonmentCauses)
         .as("counted as a failed attempt, so it is bounded")
-        .containsExactly(true);
+        .containsExactly(AbandonedIndexing.Cause.FAILED_ATTEMPT);
     assertThat(embeddingModel.calls).as("nothing to embed").isZero();
   }
 

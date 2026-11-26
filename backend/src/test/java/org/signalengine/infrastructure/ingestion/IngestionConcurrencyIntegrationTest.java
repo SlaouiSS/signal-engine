@@ -116,7 +116,7 @@ class IngestionConcurrencyIntegrationTest extends AbstractPersistenceIntegration
     // exactly one insert won, the other was recognised as an exact duplicate — never an exception
     assertThat(results).containsExactlyInAnyOrder(true, false);
     assertThat(rawItems.findByIdentity(sourceId, "ext-1", "the-same-content-hash")).isPresent();
-    assertThat(rawItems.findByProcessingState(ProcessingState.NORMALIZED, 100))
+    assertThat(rawItems.findDueByProcessingState(ProcessingState.NORMALIZED, Instant.now(), 100))
         .filteredOn(persisted -> persisted.sourceId().equals(sourceId))
         .hasSize(1);
   }
@@ -147,7 +147,7 @@ class IngestionConcurrencyIntegrationTest extends AbstractPersistenceIntegration
     assertThat(reports.stream().mapToInt(CollectionReport::newItemCount).sum()).isEqualTo(1);
     assertThat(reports.stream().mapToInt(CollectionReport::duplicateCount).sum()).isEqualTo(1);
 
-    assertThat(rawItems.findByProcessingState(ProcessingState.NORMALIZED, 100))
+    assertThat(rawItems.findDueByProcessingState(ProcessingState.NORMALIZED, Instant.now(), 100))
         .filteredOn(persisted -> persisted.sourceId().equals(sourceId))
         .hasSize(1);
     assertThat(activity.findMostRecent(50))

@@ -9,15 +9,21 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import org.signalengine.application.InvalidInputException;
+import org.signalengine.application.ai.AiError;
+import org.signalengine.application.ai.AiInputLimits;
 import org.signalengine.application.dedup.NearDuplicateAssessor.Candidate;
 import org.signalengine.application.dedup.NearDuplicateAssessor.NearDuplicateAssessment.Assessed;
 import org.signalengine.application.dedup.NearDuplicateAssessor.NearDuplicateAssessment.AssessmentUnavailable;
 import org.signalengine.application.dedup.NearDuplicateAssessor.Query;
 import org.signalengine.application.dedup.NearDuplicateAssessor.Verdict;
 import org.signalengine.application.persistence.ActivityRecordRepository;
+import org.signalengine.application.persistence.FailedAttemptKind;
 import org.signalengine.application.persistence.RawInformationItemRepository;
 import org.signalengine.application.persistence.RelevantInformationRepository;
 import org.signalengine.application.persistence.UnitOfWork;
+import org.signalengine.application.pipeline.ItemRetryScheduler;
+import org.signalengine.application.pipeline.PipelineStage;
+import org.signalengine.application.pipeline.StageBudget;
 import org.signalengine.domain.ActivityRecord;
 import org.signalengine.domain.ProcessingState;
 import org.signalengine.domain.RawInformationItem;
@@ -40,13 +46,14 @@ public final class DefaultGroupIntoRelevantInformationUseCase
 
   private static final Logger log =
       LoggerFactory.getLogger(DefaultGroupIntoRelevantInformationUseCase.class);
-  private static final String STAGE = "near_duplicate_assessment";
+  private static final String STAGE = PipelineStage.NEAR_DUPLICATE_ASSESSMENT.stageName();
 
   private final RawInformationItemRepository rawInformationItemRepository;
   private final RelevantInformationRepository relevantInformationRepository;
   private final NearDuplicateAssessor nearDuplicateAssessor;
   private final ActivityRecordRepository activityRecordRepository;
   private final UnitOfWork unitOfWork;
+  private final ItemRetryScheduler itemRetryScheduler;
   private final Clock clock;
   private final int candidatePoolSize;
   private final int batchLimit;
@@ -57,6 +64,7 @@ public final class DefaultGroupIntoRelevantInformationUseCase
       NearDuplicateAssessor nearDuplicateAssessor,
       ActivityRecordRepository activityRecordRepository,
       UnitOfWork unitOfWork,
+      ItemRetryScheduler itemRetryScheduler,
       Clock clock,
       int candidatePoolSize,
       int batchLimit) {
@@ -65,6 +73,7 @@ public final class DefaultGroupIntoRelevantInformationUseCase
     this.nearDuplicateAssessor = nearDuplicateAssessor;
     this.activityRecordRepository = activityRecordRepository;
     this.unitOfWork = unitOfWork;
+    this.itemRetryScheduler = itemRetryScheduler;
     this.clock = clock;
     this.candidatePoolSize = candidatePoolSize;
     this.batchLimit = batchLimit;
@@ -120,11 +129,14 @@ public final class DefaultGroupIntoRelevantInformationUseCase
    * the suspension.
    */
   @Override
-  public List<GroupingReport> groupNormalizedRawInformationItems() {
+  public List<GroupingReport> groupNormalizedRawInformationItems(StageBudget budget) {
     List<GroupingReport> reports = new ArrayList<>();
     for (RawInformationItem item :
-        rawInformationItemRepository.findByProcessingState(
-            ProcessingState.NORMALIZED, batchLimit)) {
+        rawInformationItemRepository.findDueByProcessingState(
+            ProcessingState.NORMALIZED, clock.instant(), batchLimit)) {
+      if (budget.exhausted()) {
+        break;
+      }
       reports.add(groupOneIsolatingFailure(item.id()));
     }
     List<GroupingReport> suspended =
@@ -149,7 +161,32 @@ public final class DefaultGroupIntoRelevantInformationUseCase
       log.error(
           "Unexpected failure grouping raw information item {}", rawInformationItemId, failure);
       recordActivity(rawInformationItemId, "failure", "unexpected error: " + failure.getMessage());
+      countUnexpectedFailure(rawInformationItemId, failure);
       return GroupingReport.assessmentFailed(rawInformationItemId, "unexpected error");
+    }
+  }
+
+  /**
+   * An unexpected error uses no retry budget, but it is counted, so a deterministic defect cannot
+   * be retried for ever. If even the counting fails (the database is away), the next run finds the
+   * item as it was.
+   */
+  private void countUnexpectedFailure(UUID rawInformationItemId, RuntimeException failure) {
+    if (Thread.currentThread().isInterrupted()) {
+      return;
+    }
+    try {
+      itemRetryScheduler.recordFailedAttempt(
+          rawInformationItemId,
+          null,
+          PipelineStage.NEAR_DUPLICATE_ASSESSMENT,
+          FailedAttemptKind.UNEXPECTED,
+          "unexpected error: " + failure.getMessage());
+    } catch (RuntimeException countingFailure) {
+      log.warn(
+          "Could not count the failure of raw information item {}",
+          rawInformationItemId,
+          countingFailure);
     }
   }
 
@@ -228,22 +265,41 @@ public final class DefaultGroupIntoRelevantInformationUseCase
         item.id(),
         "failure",
         "near-duplicate assessment failed (" + error.code() + "): " + error.message());
+    if (error.rejectsThisInput()) {
+      // Set aside, not failed for good: the content is kept and can be requeued.
+      return fail(
+          item,
+          "set aside, the content cannot be processed as it is: " + error.message(),
+          true,
+          error);
+    }
     if (error.retryable()) {
-      // Behind the items not attempted yet, so a transiently failing item cannot starve the queue.
-      rawInformationItemRepository.recordRetryableAttempt(
-          item.id(), ProcessingState.NORMALIZED, clock.instant());
+      if (!Thread.currentThread().isInterrupted()) {
+        itemRetryScheduler.recordFailedAttempt(
+            item.id(),
+            null,
+            PipelineStage.NEAR_DUPLICATE_ASSESSMENT,
+            FailedAttemptKind.TRANSIENT,
+            error.code() + ": " + error.message());
+      }
       return GroupingReport.assessmentFailed(item.id(), "retryable: " + error.code());
     }
+    return fail(item, error.message(), false, error);
+  }
+
+  private GroupingReport fail(
+      RawInformationItem item, String reason, boolean requeueable, AiError error) {
     unitOfWork.inTransaction(
         () -> {
           rawInformationItemRepository.transitionFromState(
               item.id(),
               ProcessingState.NORMALIZED,
-              ProcessingState.failed(STAGE, error.message(), false, clock.instant()),
+              ProcessingState.failed(STAGE, reason, requeueable, clock.instant()),
               null);
           return null;
         });
-    return GroupingReport.assessmentFailed(item.id(), "non-retryable: " + error.code());
+    return GroupingReport.assessmentFailed(
+        item.id(), (requeueable ? "set aside: " : "non-retryable: ") + error.code());
   }
 
   private GroupingReport skippedBecauseAnotherRunHandledIt(UUID rawInformationItemId) {
@@ -260,6 +316,7 @@ public final class DefaultGroupIntoRelevantInformationUseCase
         .filter(candidate -> !candidate.id().equals(itemBeingAssessed))
         .filter(candidate -> candidate.relevantInformationId() != null)
         .filter(candidate -> !isBlank(candidate.normalizedContent()))
+        .filter(this::fitsTheComparisonLimit)
         .map(
             candidate ->
                 new CandidateInformation(
@@ -267,6 +324,21 @@ public final class DefaultGroupIntoRelevantInformationUseCase
                     candidate.relevantInformationId(),
                     candidate.normalizedContent()))
         .toList();
+  }
+
+  /**
+   * An already grouped item too long to be compared cannot be a candidate: sending it would get the
+   * whole comparison refused for the item being assessed.
+   */
+  private boolean fitsTheComparisonLimit(RawInformationItem candidate) {
+    boolean fits =
+        !AiInputLimits.exceeds(candidate.normalizedContent(), AiInputLimits.NEAR_DUPLICATE_TEXT);
+    if (!fits) {
+      log.warn(
+          "Raw information item {} is too long to be compared; left out of the candidate pool",
+          candidate.id());
+    }
+    return fits;
   }
 
   private void recordActivity(UUID rawInformationItemId, String outcome, String message) {

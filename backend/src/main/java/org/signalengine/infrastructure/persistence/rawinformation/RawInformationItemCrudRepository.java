@@ -50,20 +50,72 @@ interface RawInformationItemCrudRepository extends ListCrudRepository<RawInforma
                ) AS source_rank
         FROM raw_information_item
         WHERE processing_state = :processingState
+          AND (next_attempt_at IS NULL OR next_attempt_at <= :dueAt)
       ) ranked_by_source
       ORDER BY source_rank ASC, processing_updated_at ASC, id ASC
       LIMIT :limit
       """)
-  List<RawInformationItemRow> findByProcessingState(String processingState, int limit);
+  List<RawInformationItemRow> findDueByProcessingState(
+      String processingState, Instant dueAt, int limit);
+
+  @Query(
+      """
+      UPDATE raw_information_item
+      SET transient_failures = transient_failures + 1
+      WHERE id = :id AND processing_state = :expectedState
+      RETURNING transient_failures
+      """)
+  Optional<Integer> countTransientFailure(UUID id, String expectedState);
+
+  @Query(
+      """
+      UPDATE raw_information_item
+      SET unexpected_failures = unexpected_failures + 1
+      WHERE id = :id AND processing_state = :expectedState
+      RETURNING unexpected_failures
+      """)
+  Optional<Integer> countUnexpectedFailure(UUID id, String expectedState);
+
+  @Modifying
+  @Query(
+      """
+      UPDATE raw_information_item
+      SET processing_updated_at = :attemptedAt,
+          next_attempt_at       = :nextAttemptAt,
+          updated_at            = :attemptedAt
+      WHERE id = :id AND processing_state = :expectedState
+      """)
+  boolean postponeNextAttempt(
+      UUID id, String expectedState, Instant attemptedAt, Instant nextAttemptAt);
 
   @Query(
       """
       SELECT * FROM raw_information_item
-      WHERE processing_state IN (:processingStates)
+      WHERE processing_state = 'failed' AND failure_retryable
       ORDER BY processing_updated_at ASC, id ASC
-      LIMIT :limit
       """)
-  List<RawInformationItemRow> findByProcessingStateIn(List<String> processingStates, int limit);
+  List<RawInformationItemRow> findRetryableFailures();
+
+  @Modifying
+  @Query(
+      """
+      UPDATE raw_information_item
+      SET processing_state      = :resumeState,
+          failed_stage          = NULL,
+          failure_reason        = NULL,
+          failure_retryable     = NULL,
+          transient_failures    = 0,
+          unexpected_failures   = 0,
+          next_attempt_at       = NULL,
+          processing_updated_at = :requeuedAt,
+          updated_at            = :requeuedAt
+      WHERE id = :id
+        AND processing_state = 'failed'
+        AND failure_retryable
+        AND failed_stage = :failedStage
+      """)
+  boolean requeueRetryableFailure(
+      UUID id, String failedStage, String resumeState, Instant requeuedAt);
 
   @Query(
       """
@@ -88,6 +140,9 @@ interface RawInformationItemCrudRepository extends ListCrudRepository<RawInforma
           failed_stage           = :failedStage,
           failure_reason         = :failureReason,
           failure_retryable      = :failureRetryable,
+          transient_failures     = 0,
+          unexpected_failures    = 0,
+          next_attempt_at        = NULL,
           processing_updated_at  = :updatedAt,
           updated_at             = :updatedAt
       WHERE id = :id AND processing_state = :expectedState

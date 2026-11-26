@@ -4,7 +4,9 @@ import java.sql.SQLException;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.UUID;
+import org.signalengine.application.persistence.FailedAttemptKind;
 import org.signalengine.application.persistence.RawInformationItemRepository;
 import org.signalengine.domain.ProcessingState;
 import org.signalengine.domain.RawInformationItem;
@@ -86,20 +88,49 @@ class RawInformationItemRepositoryAdapter implements RawInformationItemRepositor
   }
 
   @Override
-  public List<RawInformationItem> findByProcessingState(String processingState, int limit) {
-    return rawInformationItemCrudRepository.findByProcessingState(processingState, limit).stream()
+  public List<RawInformationItem> findDueByProcessingState(
+      String processingState, Instant dueAt, int limit) {
+    return rawInformationItemCrudRepository
+        .findDueByProcessingState(processingState, dueAt, limit)
+        .stream()
         .map(RawInformationItemRepositoryAdapter::toDomain)
         .toList();
   }
 
   @Override
-  public List<RawInformationItem> findByProcessingStateIn(
-      List<String> processingStates, int limit) {
-    return rawInformationItemCrudRepository
-        .findByProcessingStateIn(processingStates, limit)
-        .stream()
+  public OptionalInt countFailedAttempt(
+      UUID rawInformationItemId, String expectedState, FailedAttemptKind kind) {
+    Optional<Integer> failures =
+        switch (kind) {
+          case TRANSIENT ->
+              rawInformationItemCrudRepository.countTransientFailure(
+                  rawInformationItemId, expectedState);
+          case UNEXPECTED ->
+              rawInformationItemCrudRepository.countUnexpectedFailure(
+                  rawInformationItemId, expectedState);
+        };
+    return failures.map(OptionalInt::of).orElseGet(OptionalInt::empty);
+  }
+
+  @Override
+  public boolean postponeNextAttempt(
+      UUID rawInformationItemId, String expectedState, Instant attemptedAt, Instant nextAttemptAt) {
+    return rawInformationItemCrudRepository.postponeNextAttempt(
+        rawInformationItemId, expectedState, attemptedAt, nextAttemptAt);
+  }
+
+  @Override
+  public List<RawInformationItem> findRetryableFailures() {
+    return rawInformationItemCrudRepository.findRetryableFailures().stream()
         .map(RawInformationItemRepositoryAdapter::toDomain)
         .toList();
+  }
+
+  @Override
+  public boolean requeueRetryableFailure(
+      UUID rawInformationItemId, String failedStage, String resumeState, Instant requeuedAt) {
+    return rawInformationItemCrudRepository.requeueRetryableFailure(
+        rawInformationItemId, failedStage, resumeState, requeuedAt);
   }
 
   @Override

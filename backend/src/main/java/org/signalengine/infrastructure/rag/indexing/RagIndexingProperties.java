@@ -19,10 +19,14 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * @param maxFailedAttempts how many consecutive failed attempts a content gets before
  *     reconciliation stops retrying it
  * @param reconciliationBatchLimit how many contents one reconciliation sweep indexes at most
+ * @param timeBudget how long the indexing of one content may keep starting AI calls
+ * @param maxTimeBudgetOverruns how often a content may exceed that budget before it is blocked
  */
 @ConfigurationProperties("signal-engine.rag.indexing")
 public record RagIndexingProperties(
     @DefaultValue("structure-aware") String chunker,
-    @DefaultValue("15m") Duration claimLease,
+    @DefaultValue("40m") Duration claimLease,
     @DefaultValue("5") int maxFailedAttempts,
-    @DefaultValue("20") int reconciliationBatchLimit) {}
+    @DefaultValue("20") int reconciliationBatchLimit,
+    @DefaultValue("30m") Duration timeBudget,
+    @DefaultValue("3") int maxTimeBudgetOverruns) {}

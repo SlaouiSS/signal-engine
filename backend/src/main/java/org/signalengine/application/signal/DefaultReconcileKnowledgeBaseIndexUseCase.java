@@ -10,6 +10,7 @@ import org.signalengine.application.ai.AiError;
 import org.signalengine.application.persistence.ActivityRecordRepository;
 import org.signalengine.application.persistence.RawInformationItemRepository;
 import org.signalengine.application.persistence.SourceRepository;
+import org.signalengine.application.pipeline.StageBudget;
 import org.signalengine.domain.ActivityRecord;
 import org.signalengine.domain.RawInformationItem;
 import org.signalengine.domain.Source;
@@ -43,7 +44,6 @@ public final class DefaultReconcileKnowledgeBaseIndexUseCase
   private final SourceRepository sourceRepository;
   private final ActivityRecordRepository activityRecordRepository;
   private final Clock clock;
-  private final int maxFailedAttempts;
   private final int batchLimit;
 
   public DefaultReconcileKnowledgeBaseIndexUseCase(
@@ -52,25 +52,25 @@ public final class DefaultReconcileKnowledgeBaseIndexUseCase
       SourceRepository sourceRepository,
       ActivityRecordRepository activityRecordRepository,
       Clock clock,
-      int maxFailedAttempts,
       int batchLimit) {
     this.knowledgeBaseIndexer = knowledgeBaseIndexer;
     this.rawInformationItemRepository = rawInformationItemRepository;
     this.sourceRepository = sourceRepository;
     this.activityRecordRepository = activityRecordRepository;
     this.clock = clock;
-    this.maxFailedAttempts = maxFailedAttempts;
     this.batchLimit = batchLimit;
   }
 
   @Override
-  public List<IndexReconciliationReport> reconcilePending() {
+  public List<IndexReconciliationReport> reconcilePending(StageBudget budget) {
     List<UUID> awaitingIndexing =
-        knowledgeBaseIndexer.findItemIdsAwaitingIndexing(
-            clock.instant(), maxFailedAttempts, batchLimit);
+        knowledgeBaseIndexer.findItemIdsAwaitingIndexing(clock.instant(), batchLimit);
 
     List<IndexReconciliationReport> reports = new ArrayList<>();
     for (UUID itemId : awaitingIndexing) {
+      if (budget.exhausted()) {
+        break;
+      }
       rawInformationItemRepository
           .findById(itemId)
           .ifPresent(item -> reports.add(reconcileOne(item)));
@@ -150,7 +150,12 @@ public final class DefaultReconcileKnowledgeBaseIndexUseCase
       return IndexReconciliationReport.suspended(item.id(), failure.getMessage());
     }
     log.warn("Reconciling the knowledge base index failed for item {}", item.id(), failure);
-    String reason = "indexing failed: " + failure.getMessage();
+    boolean nowBlocked =
+        knowledgeBaseIndexer.findBlockedIndexing().stream()
+            .anyMatch(blocked -> blocked.rawInformationItemId().equals(item.id()));
+    String reason =
+        (nowBlocked ? "indexing blocked, no further attempt: " : "indexing failed: ")
+            + failure.getMessage();
     recordActivity(source, item, "failure", reason);
     return IndexReconciliationReport.failed(item.id(), reason);
   }
