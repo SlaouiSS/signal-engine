@@ -634,6 +634,12 @@ architectural requirement itself:
   could not be processed (a transient failure, or a suspended capability) is moved
   behind the items not attempted yet, and pages of pending work are ordered by it
   (`docs/adr/0018-pipeline-reliability.md`).
+- **Retries are bounded** (`docs/adr/0019-pipeline-automation.md`, migration V14).
+  `pending-retry` above is not a separate stored state: the item stays in the state
+  that waits for its stage, with its failure counts and the time of its next
+  attempt. Every transition resets them. At a limit it becomes `failed` with
+  `retryable` set and its stage, from which an operator can requeue it. A Source
+  counts its consecutive collection failures.
 
 ---
 
@@ -738,7 +744,9 @@ written in the same transaction as the atomic replacement of the content's passa
 currently indexed only if a marker exists and matches; otherwise it is reconciled. Separately,
 `ai_capability_suspension` and `ai_capability_health` (migration V12) record a capability suspended
 after its provider configuration was refused (or its requests were rejected while it was not known to
-work) and when it last succeeded; they are operational state, not business data.
+work) and when it last succeeded; they are operational state, not business data. Migration V14 adds to
+`rag_content_index` the failure counts, the next attempt time, and for a blocked content the time and
+diagnostic, together with which content and chunker configuration they belong to.
 
 **Changing the embedding model or dimension requires a controlled
 re-embedding strategy** — existing vectors would no longer be comparable to

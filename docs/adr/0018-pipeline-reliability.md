@@ -4,6 +4,12 @@ Status: Accepted
 Date: 2026-11-24
 Phase: hardening of Phases 4–8 (docs/11-roadmap.md), Mission 1 — make the existing pipeline reliable
 
+> **Update (2026-11-26).** `docs/adr/0019-pipeline-automation.md` adds the scheduler and the item
+> retry budget left open here. It also pages pending work per Processing State (Section 2 below was
+> not true of a shared page), makes a transiently failing probe suspend again, suspends on a series
+> of contract or invalid-request errors, lifts the M3 limit and reduces M4. The claim lease is now 40 min, and
+> a suspension caused by transient failures has a short cooldown of its own.
+
 ---
 
 ## Context

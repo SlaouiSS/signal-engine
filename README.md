@@ -32,11 +32,11 @@ numbering scheme.
 | 1 | Project Foundation | **Complete** — backend / agents / frontend skeletons, Docker Compose, dependency + version management, CI, health checks, `/api/v1` conventions, OpenAPI |
 | 2 | Database / Persistence Foundation | **Complete** — Flyway migrations V1–V9, Spring Data JDBC ports + adapters (`docs/adr/0001`, `0002`) |
 | 3 | Backend Core / Contracts | **Complete** — application use-case ports, the `/api/v1` business API (RFC 9457, OpenAPI), the Java↔Python capability contract + transport (`docs/adr/0003`, `0004`, `0006`) |
-| 4 | Source Collection / Ingestion | **Complete (representative scope)** — one SSRF-guarded HTTP connector behind a `SourceCollector` port (scheme + resolved-address checks, bounded redirects/response size, validated-address pinning against DNS rebinding), deterministic normalisation + exact deduplication, provenance, processing state, idempotency (`docs/adr/0005`, `0017`). Runs once in the background at each backend start — no scheduler (cadence is Q9, open); final source list/types open (Q1) |
+| 4 | Source Collection / Ingestion | **Complete (representative scope)** — one SSRF-guarded HTTP connector behind a `SourceCollector` port (scheme + resolved-address checks, bounded redirects/response size, validated-address pinning against DNS rebinding), deterministic normalisation + exact deduplication, provenance, processing state, idempotency (`docs/adr/0005`, `0017`). Runs at backend startup and then periodically (`docs/adr/0019`; cadence provisional, Q9); final source list/types open (Q1) |
 | 5 | Semantic Deduplication / Relevant Information | **Complete** — the `near-duplicate` capability + Java-owned grouping into Relevant Information (`docs/adr/0007`); boolean verdict, no numeric threshold (Q12 / T15 open) |
 | 6 | Importance / Signal / Summary | **Complete** — the `relevance` / `importance` / `summarize` capabilities, deterministic Signal creation, a source-grounded Summary, migration V10 (`docs/adr/0008`); classification folded into `relevance` |
 | 7 | Knowledge Base / Embeddings | **Complete** — the framework-free RAG core, semantic chunking, the embedding contract + a real local-model benchmark, and pgvector passage-index persistence + indexing pipeline (migration V11) — Tasks 8.1–8.3B, `docs/adr/0009`–`0012` |
-| 8 | Semantic Search / Grounded Q&A | **Complete** — retrieval → context assembly → grounded generation → grounding validation → deterministic evaluation, composed as a `RagPipeline` and exposed through the `/api/v1/search` and `/api/v1/questions` REST endpoints (Tasks 8.3C–8.6, `docs/adr/0013`–`0016`); an item confirmed relevant is now indexed into `rag_passage`/`rag_passage_embedding` automatically, via `KnowledgeBaseIndexer` called from `DefaultProcessRelevantInformationUseCase` — no scheduler, no backfill of records processed before this wiring existed |
+| 8 | Semantic Search / Grounded Q&A | **Complete** — retrieval → context assembly → grounded generation → grounding validation → deterministic evaluation, composed as a `RagPipeline` and exposed through the `/api/v1/search` and `/api/v1/questions` REST endpoints (Tasks 8.3C–8.6, `docs/adr/0013`–`0016`); an item confirmed relevant is now indexed into `rag_passage`/`rag_passage_embedding` automatically, via `KnowledgeBaseIndexer` called from `DefaultProcessRelevantInformationUseCase`; items not completely indexed are reconciled by the scheduled pipeline (`docs/adr/0018`, `0019`) |
 | 9 | Frontend | **Complete for its scope (Tasks 1–7 + Task 9 polish/integration).** Typed API client generated from the backend's OpenAPI document (`frontend/src/api/`, `npm run generate:api`). Screens implemented: Sources and Interests (`frontend/src/sources/`, `frontend/src/interests/`) — list, create, edit, enable/disable, no removal (the backend has none, by documented open decision); Signals (`frontend/src/signals/`) — newest-first list via `GET /api/v1/signals`, with a Relevant Information / provenance drill-down and, in that same detail view, feedback — mark a signal relevant or not relevant via `POST /api/v1/signals/{signalId}/feedback`, append-only (no edit/withdraw, per the backend contract), with the control replaced by a plain acknowledgment once the signal's state reflects a recorded verdict; Search (`frontend/src/search/`) — a query form over `POST /api/v1/search`, rendering source-grounded passages in retrieval order with score, provenance, and an original-source link; Q&A (`frontend/src/qa/`) — a single-question form over `POST /api/v1/questions`, showing the grounded answer with citations, or the explicit "not enough information" outcome when `answered=false`; Activity (`frontend/src/activity/`) — a read-only, newest-first feed via `GET /api/v1/activity`. The Task 9 polish pass added the Retry action missing from the Sources/Interests error states and merged duplicated provenance markup (Search/Q&A) into one shared component. **Alerts UI does not exist** — Task 8 found no alert backend capability at any layer (no domain object, migration, repository, use case, controller, or OpenAPI schema) and is deferred to Phase 10 |
 | 10 | Alerts | Not started — gated on Q19 (channel) and Q20 (retry); the backend capability itself does not exist yet (confirmed by Phase 9 Task 8) |
 | 11 | Evaluation / Hardening | Not started — the systematic end-to-end evaluation + security pass |
@@ -50,12 +50,11 @@ answer → validate → evaluate) is implemented, tested, and reachable via
 is complete for its scope. Next: Phase 10 — Alerts**, starting with the
 backend capability that Phase 9 Task 8 confirmed does not exist yet.
 
-**Not built yet:** a collection scheduler, alerts (backend or frontend — no
+**Not built yet:** a manual "collect now" trigger, alerts (backend or frontend — no
 alert domain object, endpoint, or notification mechanism exists), and the
 systematic evaluation / hardening pass. Advanced RAG (reranking, hybrid
 retrieval, query rewriting, context compression, an LLM-judge) is explicitly
-deferred. A one-off backfill for relevant information processed *before* the
-indexing wiring existed is not built — only newly processed items are indexed.
+deferred.
 Also open: **Q15** — no code path ever transitions a signal into `REVIEWED`
 (a defined `SignalState` that nothing sets); dismissed/kept signals stay
 visible in the list rather than being hidden, which is what's built, not a
@@ -149,9 +148,17 @@ Signal Engine's MVP is deliberately scoped. At minimum:
 - **Single-user, no authentication.** There is exactly one user role and no
   login; the API is not designed to be exposed beyond localhost/trusted-network
   access as-is (`docs/02-functional-spec.md` R14, `docs/10-security.md`).
-- **No collection scheduler.** Collection runs once, in the background, each
-  time the backend starts; there is no recurring job that collects on a cadence
-  and no "collect now" trigger yet (`docs/11-roadmap.md`).
+- **No manual "collect now" trigger**, and one global cadence rather than one per
+  source (`docs/11-roadmap.md`).
+- **One backend instance.** Running several is not supported
+  (`docs/adr/0019-pipeline-automation.md`).
+- **Long content is not processed.** A content of more than 20,000 characters is
+  kept whole but set aside: no Signal, no Summary, no indexing.
+- **Very long passages are not used in answers.** A passage over the context
+  budget (12,000 characters by default) is left out of the answer context.
+- **An item that always times out may never be set aside** while nothing else
+  uses the same AI capability; it stays pending (these three limits:
+  `docs/adr/0019-pipeline-automation.md`, "Known limitations").
 - **Alerts are not implemented.** No alert domain object, endpoint, or
   notification mechanism exists yet — see "Not built yet" above and Phase 10.
 - **No forecasting, trend analysis, correlation, or opportunity/recommendation
@@ -261,15 +268,13 @@ system up in this order:
 The **generative** AI provider is **NVIDIA Build**, not Ollama; `NVIDIA_API_KEY`
 is required for near-duplicate, relevance, importance, summarization, semantic
 chunking, and grounded Q&A to work. Nothing waits on the embedding-model download:
-backend and agents do not stay unhealthy while it runs. Calls to the AI
-capabilities use bounded retries, but a record whose indexing already failed is
-**not** re-indexed later (see [Troubleshooting](#troubleshooting)).
+backend and agents do not stay unhealthy while it runs. Failed work is retried a
+bounded number of times (see [Pipeline operation](#pipeline-operation)).
 
-**Once the backend has started, it runs the ingestion pipeline exactly once, in
-the background** (collect → group → process, over the sources that are configured
-and enabled at that moment; `StartupIngestionRunner`). With no sources yet, this
-is a no-op. There is **no scheduler**, no continuous monitoring, no automatic
-source seeding, and no automatic historical backfill.
+**Once the backend has started, it runs the pipeline in the background, then again
+every hour after the previous run ends** (collect → group → process → reconcile
+the knowledge base index; `PipelineScheduler`). With no sources yet, this is a
+no-op. Sources are never seeded automatically.
 
 ### First run
 
@@ -338,19 +343,16 @@ can also add sources yourself on the Sources screen.
 
 **8. Run collection and processing**
 
-There is no "collect now" command or endpoint, and no scheduler. The only trigger
-in the current implementation is the one-time background run at backend startup.
-Because the backend ran that pass before you seeded, **restart the backend after
-seeding** so it collects the sources you just configured:
+The pipeline runs on its own. The backend ran its first cycle before you seeded,
+so the new sources are collected at the next cycle; to avoid waiting, restart the
+backend:
 
 ```bash
 docker compose restart backend
 ```
 
-The run happens in the background after startup and depends on the network and
-on the AI services, so results appear progressively, not instantly. To collect
-again later, restart the backend again; each stage is idempotent, so repeated
-runs do not duplicate items.
+Results depend on the network and on the AI services, so they appear
+progressively. Each stage is idempotent, so repeated runs do not duplicate items.
 
 **9. What you should see**
 
@@ -371,10 +373,28 @@ runs do not duplicate items.
 | Embedding model pull | Yes | `ollama-pull` downloads `OLLAMA_EMBEDDING_MODEL` (`embeddinggemma`) |
 | NVIDIA configuration | No | You must set `NVIDIA_API_KEY` in `.env` |
 | Source seeding | No | You run `make seed` (or add sources in the UI) |
-| Source collection | Once per backend start | `StartupIngestionRunner` runs collect → group → process in the background after startup; restart the backend to run it again |
-| Knowledge-base indexing | Yes | Part of processing: an item confirmed relevant is indexed |
-| Continuous / scheduled collection | No | No scheduler exists |
-| Historical backfill | No | Records processed before the indexing wiring existed are not indexed |
+| Source collection | Yes | At startup, then `PIPELINE_FIXED_DELAY` (1h) after each cycle |
+| Knowledge-base indexing | Yes | Part of processing; incomplete indexing is reconciled each cycle |
+| Retry of failed work | Yes, bounded | See [Pipeline operation](#pipeline-operation) |
+| Requeue of work set aside | No | An operator command |
+
+### Pipeline operation
+
+Settings (in `.env`): `PIPELINE_ENABLED`, `PIPELINE_FIXED_DELAY`,
+`PIPELINE_STAGE_BUDGET`. Each cycle logs, per stage, its duration and outcomes;
+the same figures are on `/actuator/metrics` under
+`signal_engine.pipeline.stage.*`.
+
+Work that used up its attempts is kept and marked as set aside. After fixing the
+cause, list it, then requeue what is recoverable:
+
+```bash
+docker compose exec backend java -jar /app/app.jar --spring.profiles.active=requeue-exhausted-work
+docker compose exec backend java -jar /app/app.jar --spring.profiles.active=requeue-exhausted-work --apply
+```
+
+The retry rules, time limits and known limits are in
+`docs/adr/0019-pipeline-automation.md`.
 
 ### The database
 
@@ -492,12 +512,11 @@ copy it to `.env` (git-ignored) and adjust. No secret is ever committed.
   (near-duplicate, relevance, importance, summarization, semantic chunking, Q&A)
   cannot run normally. Set the key in `.env` and recreate the containers.
 - **Embedding model still downloading.** `ollama-pull` fetches `embeddinggemma`
-  in the background (`docker compose logs ollama-pull`). Embedding calls use
-  bounded retries, but indexing is attempted once per relevant record and a
-  failure is only recorded in Activity, so a record processed before the model
-  was ready may not be searchable.
-- **No sources visible.** A fresh installation has none. Run `make seed`, then
-  `docker compose restart backend` to collect them.
+  in the background (`docker compose logs ollama-pull`). Records processed before
+  the model was ready are indexed by a later pipeline cycle.
+- **No sources visible.** A fresh installation has none. Run `make seed`; they are
+  collected at the next cycle, or at once after `docker compose restart backend`.
+- **Work no longer retried.** See [Pipeline operation](#pipeline-operation).
 
 ## Contributing
 

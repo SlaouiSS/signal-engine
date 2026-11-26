@@ -40,8 +40,9 @@ shapes. This ADR records those.
   dependency.
 - Backend config `signal-engine.ai.*`: `agents-base-url` (default
   `http://127.0.0.1:8100`, `http://agents:8100` in Compose), `request-timeout`
-  (default 90s — deliberately longer than the Python model timeout so the better-
-  informed side reports a slow call first, `docs/03-technical-spec.md` Section 8.5),
+  (90s when this ADR was written; the value now in force is in
+  `docs/03-technical-spec.md` Section 13.4 — deliberately longer than the Python model timeout so the
+  better-informed side reports a slow call first, Section 8.5),
   `connect-timeout`. All environment-overridable.
 
 ### Request envelope
