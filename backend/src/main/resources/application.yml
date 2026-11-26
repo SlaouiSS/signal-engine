@@ -22,12 +22,26 @@ spring:
     url: ${DATABASE_URL:jdbc:postgresql://127.0.0.1:5432/signal_engine}
     username: ${DATABASE_USERNAME:signal_engine}
     password: ${DATABASE_PASSWORD:signal_engine}
+    hikari:
+      # Nothing may block the single pipeline thread for ever (docs/03-technical-spec.md Section
+      # 13.4; docs/adr/0019-pipeline-automation.md): per statement, per lock wait, per transaction,
+      # and, for a network that went silent, per socket read (seconds). Flyway connects on its own
+      # (below) and is not limited, so a long migration still completes.
+      connection-init-sql: >-
+        SET statement_timeout = '${DATABASE_STATEMENT_TIMEOUT:15s}';
+        SET lock_timeout = '${DATABASE_LOCK_TIMEOUT:5s}';
+        SET transaction_timeout = '${DATABASE_TRANSACTION_TIMEOUT:60s}'
+      data-source-properties:
+        socketTimeout: ${DATABASE_SOCKET_TIMEOUT_SECONDS:60}
 
   # Flyway Community, plain versioned SQL migrations, forward-only
   # (docs/03-technical-spec.md Section 4.8). Migrations run on startup against the
   # system of record.
   flyway:
     enabled: true
+    url: ${spring.datasource.url}
+    user: ${spring.datasource.username}
+    password: ${spring.datasource.password}
     locations: classpath:db/migration
     clean-disabled: true
 
