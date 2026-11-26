@@ -106,7 +106,9 @@ class StagedIndexingPipelinePersistenceIntegrationTest extends AbstractPersisten
             .query(Integer.class)
             .single();
     assertThat(passages).isEqualTo(first.passages());
-    assertThat(second.metadata()).containsEntry("inserted", "0");
+    assertThat(second.skipped())
+        .as("already completely indexed for this content: nothing is redone")
+        .isEqualTo(1);
   }
 
   @Test

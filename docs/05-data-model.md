@@ -629,7 +629,11 @@ architectural requirement itself:
   Section 12).
 - **One failed item must not block unrelated items** — processing state is
   tracked per item, not globally (`docs/02-functional-spec.md` R10 equivalent;
-  `docs/03-technical-spec.md` Section 13.6).
+  `docs/03-technical-spec.md` Section 13.6). The time of an item's processing state
+  (`processing_updated_at`) is also the time of its **last attempt**: an item that
+  could not be processed (a transient failure, or a suspended capability) is moved
+  behind the items not attempted yet, and pages of pending work are ordered by it
+  (`docs/adr/0018-pipeline-reliability.md`).
 
 ---
 
@@ -725,6 +729,16 @@ Section 13 (question answering) already require is introduced.
   once relevance assessment confirms it (i.e. it becomes retained Relevant
   Information), indexed automatically at that point — not the Signal or
   Summary text, and not items relevance assessment set aside as not relevant.*
+
+*Indexing reliability (`docs/adr/0018-pipeline-reliability.md`, migration V13):*
+`rag_content_index` holds one row per indexed content (the Raw Information Item id), with an explicit
+**completion marker** — content fingerprint, chunker configuration, embedding model, passage count —
+written in the same transaction as the atomic replacement of the content's passages, plus a claim
+(`revision` fencing token and `lease_until`) and `failed_attempts`. A content is completely and
+currently indexed only if a marker exists and matches; otherwise it is reconciled. Separately,
+`ai_capability_suspension` and `ai_capability_health` (migration V12) record a capability suspended
+after its provider configuration was refused (or its requests were rejected while it was not known to
+work) and when it last succeeded; they are operational state, not business data.
 
 **Changing the embedding model or dimension requires a controlled
 re-embedding strategy** — existing vectors would no longer be comparable to

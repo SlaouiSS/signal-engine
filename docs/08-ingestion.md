@@ -576,6 +576,12 @@ creating duplicate business records or corrupting provenance:
 **Core principle: retrying must not create duplicate business records or
 corrupt provenance.**
 
+*Knowledge base indexing* follows the same principle (`docs/adr/0018-pipeline-reliability.md`): it is
+claimed per content, prepared outside any transaction, and replaced atomically with a completion
+marker, so repeating it, running it concurrently, or resuming it after an interruption never leaves a
+duplicate or a half-indexed content. An item whose relevance is confirmed but that has no matching
+marker is indexed again, never assumed to be indexed.
+
 No exact implementation strategy (specific upsert mechanics, locking
 approach, or storage pattern) is invented here. Consistent with the existing
 architecture, this relies on: **Java-owned state**, **PostgreSQL** as the
@@ -644,6 +650,16 @@ output, invalid embedding. Handled per the bounded repair and typed-error
 behavior already defined (`docs/03-technical-spec.md` Section 9.6;
 `docs/06-ai-agents.md` Sections 7, 10).
 
+**A refused provider configuration is not retried per item.** When the provider answers that its
+configuration is wrong (credentials, a retired model: HTTP 401/402/403/404/410), the capability is
+*suspended* (persisted, so a restart does not retry it), the affected items are left untouched, the
+sweep carries on with the items that need another capability, one Activity Record summarises how many
+wait, and a single probe resumes the capability once its cooldown ends. A permanent rejection that
+only looks specific to one request (HTTP 400, 422…) fails that item only once the capability is
+known to work (it succeeded recently); otherwise the cause is uncertain and the capability is
+suspended instead, so a refused model parameter cannot turn a batch into permanent failures
+(`docs/adr/0018-pipeline-reliability.md`).
+
 **Existing bounded retry behavior is respected, not redefined.** Retries are
 bounded, with exponential backoff and jitter, applied only to retryable
 categories (`docs/03-technical-spec.md` Section 13.2–13.3). The concrete
@@ -702,6 +718,10 @@ No exact UI or API operation is defined. Preserved:
 - **Q25 / T17** — manual retry/reprocessing controls
   (`docs/02-functional-spec.md` Q25; `docs/03-technical-spec.md` Section 24,
   T17).
+
+Until they are decided, the one operational override is clearing a capability's suspension after
+the provider configuration was fixed: `DELETE FROM ai_capability_suspension WHERE capability =
+'<capability>'` (`docs/adr/0018-pipeline-reliability.md`).
 
 No workflow engine is designed to support these operations — if/when
 approved, they are expected to be thin, Java-owned operations over the

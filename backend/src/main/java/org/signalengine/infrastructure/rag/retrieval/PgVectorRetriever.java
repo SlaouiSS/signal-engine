@@ -104,10 +104,13 @@ class PgVectorRetriever implements Retriever {
             + " (e.embedding <=> CAST(:queryVector AS vector)) AS cosine_distance"
             + " FROM rag_passage_embedding e"
             + " JOIN rag_passage p ON p.id = e.passage_id"
+            + " LEFT JOIN rag_content_index ci ON ci.content_id = p.content_id"
             + " WHERE e.embedding_provider = :provider"
             + " AND e.embedding_model = :model"
             + " AND e.embedding_model_version = :version"
             + " AND e.embedding_dimension = :dimension"
+            + " AND (ci.content_id IS NULL OR ci.indexed_at IS NULL"
+            + " OR (p.chunker_id = ci.chunker_id AND p.chunker_version = ci.chunker_version))"
             + filterSql
             + " ORDER BY cosine_distance ASC, p.id ASC"
             + " LIMIT :topK";

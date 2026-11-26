@@ -139,6 +139,19 @@ class AiCapabilityContractTest {
   }
 
   @Test
+  void providerRejectedFixtureMapsToNonRetryableConfigurationFailure() throws IOException {
+    Failed<EchoResult> failed =
+        (Failed<EchoResult>) replay("response.error.provider-rejected.json", 503, EchoResult.class);
+
+    assertThat(failed.error().code()).isEqualTo("AI_PROVIDER_UNAVAILABLE");
+    assertThat(failed.error().category()).isEqualTo("provider");
+    assertThat(failed.error().retryable()).isFalse();
+    assertThat(failed.error().details())
+        .containsEntry("providerStatus", 404)
+        .containsEntry("providerFailureScope", "configuration");
+  }
+
+  @Test
   void providerTimeoutFixtureMapsToRetryableFailure() throws IOException {
     Failed<EchoResult> failed =
         (Failed<EchoResult>) replay("response.error.provider-timeout.json", 504, EchoResult.class);

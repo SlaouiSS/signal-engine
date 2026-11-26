@@ -45,6 +45,9 @@ class StagedIndexingPipelineTest {
     assertThat(report.failed()).isZero();
     assertThat(report.fullyIndexed()).isTrue();
     assertThat(store.entries).hasSize(3);
+    assertThat(store.completionMarkers)
+        .as("the completion marker is written with the replacement")
+        .containsKey("c-1");
     assertThat(report.metadata())
         .containsEntry("inserted", "3")
         .containsEntry("embeddingModel", "fake-embed")
@@ -53,14 +56,30 @@ class StagedIndexingPipelineTest {
   }
 
   @Test
-  void reRunningIsIdempotentAndReportsUpdates() {
+  void reRunningOverContentAlreadyCompletelyIndexedDoesNothingMore() {
     StagedIndexingPipeline pipeline = pipeline(new SplittingChunker("1"));
     pipeline.index(threeBlocks());
+    int embeddingCallsAfterFirstRun = embeddingModel.calls;
+
     IndexingReport second = pipeline.index(threeBlocks());
 
     assertThat(store.entries).hasSize(3); // not 6
+    assertThat(second.skipped()).isEqualTo(1);
+    assertThat(embeddingModel.calls).isEqualTo(embeddingCallsAfterFirstRun);
+  }
+
+  @Test
+  void reRunningOverChangedContentUpdatesTheExistingPassagesInPlace() {
+    StagedIndexingPipeline pipeline = pipeline(new SplittingChunker("1"));
+    pipeline.index(threeBlocks());
+
+    IndexingReport second =
+        pipeline.index(
+            IndexingTestDoubles.content("c-1", "block one\n\nblock two\n\nblock three changed"));
+
     assertThat(second.persisted()).isEqualTo(3);
-    assertThat(second.metadata()).containsEntry("inserted", "0").containsEntry("updated", "3");
+    assertThat(second.metadata()).containsEntry("updated", "2").containsEntry("inserted", "1");
+    assertThat(second.metadata()).containsEntry("removedStale", "1");
   }
 
   @Test
@@ -91,22 +110,76 @@ class StagedIndexingPipelineTest {
     assertThatThrownBy(() -> pipeline(new SplittingChunker("1")).index(threeBlocks()))
         .isInstanceOf(EmbeddingException.class);
     assertThat(store.entries).isEmpty();
+    assertThat(store.abandonedContents).containsExactly("c-1");
+    assertThat(store.abandonedAsFailedAttempt).containsExactly(true);
   }
 
   @Test
-  void aPerPassagePersistenceFailureIsCountedNotSwallowed() {
-    IndexingReport firstRun = pipeline(new SplittingChunker("1")).index(threeBlocks());
-    String victim = store.entries.keySet().iterator().next().split("\\|")[0];
-    store.entries.clear();
-    store.failForPassageId = victim;
+  void aFailureThatIsNotTheContentsFaultDoesNotCountAsAFailedAttempt() {
+    embeddingModel.fail = true;
+    StagedIndexingPipeline pipeline =
+        StagedIndexingPipeline.builder()
+            .chunker(new SplittingChunker("1"))
+            .embeddingModel(embeddingModel)
+            .store(store)
+            .failureCountsAsAttempt(failure -> false)
+            .build();
+
+    assertThatThrownBy(() -> pipeline.index(threeBlocks())).isInstanceOf(EmbeddingException.class);
+
+    assertThat(store.abandonedAsFailedAttempt).containsExactly(false);
+  }
+
+  @Test
+  void aContentAlreadyClaimedByAnotherRunIsSkippedNotIndexed() {
+    store.claim(
+        "c-1",
+        "another-fingerprint",
+        new SplittingChunker("1").descriptor()); // another run holds it
 
     IndexingReport report = pipeline(new SplittingChunker("1")).index(threeBlocks());
 
-    assertThat(firstRun.failed()).isZero();
-    assertThat(report.failed()).isEqualTo(1);
-    assertThat(report.persisted()).isEqualTo(2);
-    assertThat(report.notes()).anyMatch(note -> note.contains("not stored"));
+    assertThat(report.skipped()).isEqualTo(1);
     assertThat(report.fullyIndexed()).isFalse();
+    assertThat(store.entries).isEmpty();
+    assertThat(embeddingModel.calls).as("no chunking or embedding work was done").isZero();
+  }
+
+  @Test
+  void aRunWhoseClaimWasSupersededWritesNothingAndIsReportedAsSkipped() {
+    store.supersedeBeforeReplace = true;
+
+    IndexingReport report = pipeline(new SplittingChunker("1")).index(threeBlocks());
+
+    assertThat(report.skipped()).isEqualTo(1);
+    assertThat(report.notes()).anyMatch(note -> note.contains("superseded"));
+    assertThat(store.entries).isEmpty();
+  }
+
+  @Test
+  void aReplacementRemovesThePassagesTheNewResultNoLongerContains() {
+    pipeline(new SplittingChunker("1")).index(threeBlocks());
+
+    IndexingReport report =
+        pipeline(new SplittingChunker("1"))
+            .index(IndexingTestDoubles.content("c-1", "block one\n\nblock two"));
+
+    assertThat(store.entries).hasSize(2);
+    assertThat(report.metadata()).containsEntry("removedStale", "1");
+  }
+
+  @Test
+  void aStoreFailureAbortsTheWholeContentAndKeepsThePreviousIndex() {
+    pipeline(new SplittingChunker("1")).index(threeBlocks());
+    store.failOnReplace = true;
+
+    assertThatThrownBy(
+            () ->
+                pipeline(new SplittingChunker("1"))
+                    .index(IndexingTestDoubles.content("c-1", "block one\n\nblock two")))
+        .isInstanceOf(IllegalStateException.class);
+
+    assertThat(store.entries).as("the previous complete index is untouched").hasSize(3);
   }
 
   @Test
@@ -129,7 +202,7 @@ class StagedIndexingPipelineTest {
   }
 
   @Test
-  void chunkingProducingNoPassagesIsReportedNotAnError() {
+  void chunkingProducingNoPassageIsAFailedIndexingNeverASuccess() {
     Chunker empty =
         content ->
             new Chunking(
@@ -140,10 +213,15 @@ class StagedIndexingPipelineTest {
                 List.of(),
                 Map.of());
 
-    IndexingReport report = pipeline(empty).index(threeBlocks());
+    assertThatThrownBy(() -> pipeline(empty).index(threeBlocks()))
+        .isInstanceOf(IndexingException.class)
+        .hasMessageContaining("no passage");
 
-    assertThat(report.passages()).isZero();
-    assertThat(report.notes()).anyMatch(note -> note.contains("no passages"));
+    assertThat(store.completionMarkers).as("no marker: the content is not indexed").isEmpty();
+    assertThat(store.abandonedAsFailedAttempt)
+        .as("counted as a failed attempt, so it is bounded")
+        .containsExactly(true);
+    assertThat(embeddingModel.calls).as("nothing to embed").isZero();
   }
 
   @Test

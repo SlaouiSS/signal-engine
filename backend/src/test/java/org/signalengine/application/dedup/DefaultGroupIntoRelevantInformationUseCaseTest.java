@@ -113,6 +113,93 @@ class DefaultGroupIntoRelevantInformationUseCaseTest {
 
   // --- tests -----------------------------------------------------------
 
+  private static AiError suspendedCapability() {
+    return new AiError(
+        AiError.CAPABILITY_SUSPENDED_CODE,
+        AiError.SUSPENDED_CATEGORY,
+        true,
+        "capability 'near-duplicate' is suspended until 2026-02-10T12:15:00Z",
+        UUID.randomUUID(),
+        java.util.Map.of());
+  }
+
+  private static AiError suspendedByRejectingThisRequest() {
+    return new AiError(
+        AiError.CAPABILITY_SUSPENDED_CODE,
+        AiError.SUSPENDED_CATEGORY,
+        true,
+        "capability 'near-duplicate' is suspended until 2026-02-10T12:15:00Z",
+        UUID.randomUUID(),
+        java.util.Map.of(AiError.REJECTED_THIS_REQUEST_DETAIL, true));
+  }
+
+  @Test
+  void aSuspendedCapabilityDoesNotStopTheItemsThatNeedNoAssessment() {
+    RawInformationItem needsAssessment = normalizedItem(UUID.randomUUID(), "first");
+    RawInformationItem needsNone = normalizedItem(UUID.randomUUID(), "second");
+    when(rawItems.findByProcessingState(ProcessingState.NORMALIZED, BATCH_LIMIT))
+        .thenReturn(List.of(needsAssessment, needsNone));
+    when(rawItems.findById(needsAssessment.id())).thenReturn(Optional.of(needsAssessment));
+    when(rawItems.findById(needsNone.id())).thenReturn(Optional.of(needsNone));
+    // The first item has a candidate to compare against; the second has none, so needs no AI.
+    when(rawItems.findMostRecentlyGrouped(anyInt()))
+        .thenReturn(List.of(groupedCandidate(UUID.randomUUID(), UUID.randomUUID(), "older")))
+        .thenReturn(List.of());
+    assessorReturns(new AssessmentUnavailable(suspendedCapability()));
+    transitionsSucceed();
+    when(relevantInformation.save(any())).thenAnswer(i -> withId(i.getArgument(0)));
+
+    List<GroupingReport> reports = useCase.groupNormalizedRawInformationItems();
+
+    assertThat(reports)
+        .extracting(GroupingReport::outcome)
+        .containsExactly(GroupingReport.Outcome.SUSPENDED, GroupingReport.Outcome.CREATED_NEW);
+    verify(assessor, org.mockito.Mockito.times(1)).assess(any(Query.class));
+  }
+
+  @Test
+  void theSuspensionIsSummarisedByOneActivityRecordAndOnlyTheSuspectItemIsMovedBehindTheOthers() {
+    RawInformationItem suspect = normalizedItem(UUID.randomUUID(), "first");
+    RawInformationItem skipped = normalizedItem(UUID.randomUUID(), "second");
+    when(rawItems.findByProcessingState(ProcessingState.NORMALIZED, BATCH_LIMIT))
+        .thenReturn(List.of(suspect, skipped));
+    when(rawItems.findById(suspect.id())).thenReturn(Optional.of(suspect));
+    when(rawItems.findById(skipped.id())).thenReturn(Optional.of(skipped));
+    poolContains(groupedCandidate(UUID.randomUUID(), UUID.randomUUID(), "older"));
+    when(assessor.assess(any(Query.class)))
+        .thenReturn(new AssessmentUnavailable(suspendedByRejectingThisRequest()))
+        .thenReturn(new AssessmentUnavailable(suspendedCapability()));
+
+    useCase.groupNormalizedRawInformationItems();
+
+    ArgumentCaptor<ActivityRecord> saved = ArgumentCaptor.forClass(ActivityRecord.class);
+    verify(activity, org.mockito.Mockito.times(1)).save(saved.capture());
+    assertThat(saved.getValue().message()).contains("2 item(s)", "suspended");
+    verify(rawItems).recordRetryableAttempt(suspect.id(), ProcessingState.NORMALIZED, NOW);
+    verify(rawItems, never()).recordRetryableAttempt(eq(skipped.id()), any(), any());
+  }
+
+  @Test
+  void aTransientAssessmentFailureMovesTheItemBehindTheOnesNotAttemptedYet() {
+    UUID id = UUID.randomUUID();
+    RawInformationItem item = normalizedItem(id, "text");
+    when(rawItems.findById(id)).thenReturn(Optional.of(item));
+    poolContains(groupedCandidate(UUID.randomUUID(), UUID.randomUUID(), "older"));
+    assessorReturns(
+        new AssessmentUnavailable(
+            new AiError(
+                "AI_PROVIDER_TIMEOUT",
+                "timeout",
+                true,
+                "slow",
+                UUID.randomUUID(),
+                java.util.Map.of())));
+
+    useCase.groupRawInformationItem(id);
+
+    verify(rawItems).recordRetryableAttempt(id, ProcessingState.NORMALIZED, NOW);
+  }
+
   @Test
   void candidateSelectionIsBoundedByTheConfiguredPoolSize() {
     UUID id = UUID.randomUUID();

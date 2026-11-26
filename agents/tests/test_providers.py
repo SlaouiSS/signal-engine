@@ -102,18 +102,6 @@ def test_ollama_adapter_maps_connection_error_to_retryable(
     assert caught.value.timed_out is False
 
 
-def test_ollama_adapter_maps_http_error_to_retryable(monkeypatch: pytest.MonkeyPatch) -> None:
-    def server_error(url: str, **kwargs: Any) -> httpx.Response:
-        return httpx.Response(500, text="boom", request=httpx.Request("POST", url))
-
-    monkeypatch.setattr(httpx, "post", server_error)
-
-    with pytest.raises(ProviderError) as caught:
-        _ollama().generate(_REQUEST)
-
-    assert caught.value.retryable is True
-
-
 def test_nvidia_adapter_requires_an_api_key() -> None:
     with pytest.raises(ValueError, match="NVIDIA_API_KEY"):
         NvidiaLlmProvider(base_url="https://nvidia.test/v1", model="m", api_key="")
@@ -278,18 +266,6 @@ def test_nvidia_adapter_timeout_message_reports_actual_elapsed_time(
     actual_wait = float(match.group(1))
     assert actual_wait >= 0.05
     assert actual_wait < 1.0  # measured, not the configured ceiling restated
-
-
-def test_nvidia_adapter_maps_http_error_to_retryable(monkeypatch: pytest.MonkeyPatch) -> None:
-    def unauthorized(url: str, **kwargs: Any) -> httpx.Response:
-        return httpx.Response(401, text="nope", request=httpx.Request("POST", url))
-
-    monkeypatch.setattr(httpx, "post", unauthorized)
-
-    with pytest.raises(ProviderError) as caught:
-        _nvidia().generate(_REQUEST)
-
-    assert caught.value.retryable is True
 
 
 # --- Ollama embedding adapter -----------------------------------------------

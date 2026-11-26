@@ -24,7 +24,12 @@ public record ProcessingReport(
     /** An AI step failed (retryable: item untouched; non-retryable: item marked failed). */
     ASSESSMENT_FAILED,
     /** Nothing to do — already terminal, already complete, or another run handled it. */
-    SKIPPED
+    SKIPPED,
+    /**
+     * A capability the step needs is suspended (its provider configuration was refused): the item
+     * is untouched and the sweep stops (docs/adr/0018-pipeline-reliability.md).
+     */
+    SUSPENDED
   }
 
   static ProcessingReport notRelevant(UUID relevantInformationId, String reason) {
@@ -48,6 +53,10 @@ public record ProcessingReport(
 
   static ProcessingReport assessmentFailed(UUID relevantInformationId, String detail) {
     return new ProcessingReport(relevantInformationId, Outcome.ASSESSMENT_FAILED, null, detail);
+  }
+
+  static ProcessingReport suspended(UUID relevantInformationId, String detail) {
+    return new ProcessingReport(relevantInformationId, Outcome.SUSPENDED, null, detail);
   }
 
   static ProcessingReport skipped(UUID relevantInformationId, String currentState) {

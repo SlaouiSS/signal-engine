@@ -5,6 +5,7 @@ import java.util.concurrent.Executor;
 import org.signalengine.application.dedup.GroupIntoRelevantInformationUseCase;
 import org.signalengine.application.ingestion.CollectFromSourceUseCase;
 import org.signalengine.application.signal.ProcessRelevantInformationUseCase;
+import org.signalengine.application.signal.ReconcileKnowledgeBaseIndexUseCase;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -35,12 +36,14 @@ class StartupIngestionConfiguration {
       CollectFromSourceUseCase collectFromSource,
       GroupIntoRelevantInformationUseCase groupIntoRelevantInformation,
       ProcessRelevantInformationUseCase processRelevantInformation,
+      ReconcileKnowledgeBaseIndexUseCase reconcileKnowledgeBaseIndex,
       Executor startupIngestionExecutor,
       Clock ingestionClock) {
     return new StartupIngestionRunner(
         collectFromSource,
         groupIntoRelevantInformation,
         processRelevantInformation,
+        reconcileKnowledgeBaseIndex,
         startupIngestionExecutor,
         ingestionClock);
   }

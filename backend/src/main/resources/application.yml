@@ -96,6 +96,17 @@ signal-engine:
     agents-base-url: ${AGENTS_BASE_URL:http://127.0.0.1:8100}
     request-timeout: ${AI_REQUEST_TIMEOUT:280s}
     connect-timeout: ${AI_CONNECT_TIMEOUT:5s}
+    # A capability whose provider configuration was refused (HTTP 401/402/403/404/410) is suspended
+    # instead of being retried for every item (docs/adr/0018-pipeline-reliability.md): first
+    # cooldown, cap of the doubling cooldown, and how long the one caller allowed to probe holds
+    # that right. Provisional defaults (T9).
+    suspension:
+      initial-cooldown: ${AI_SUSPENSION_INITIAL_COOLDOWN:15m}
+      max-cooldown: ${AI_SUSPENSION_MAX_COOLDOWN:6h}
+      probe-lease: ${AI_SUSPENSION_PROBE_LEASE:6m}
+      # A permanent rejection that looks specific to one request (HTTP 400, 422...) is that
+      # request's own fault only if the capability succeeded within this window.
+      evidence-window: ${AI_SUSPENSION_EVIDENCE_WINDOW:24h}
 
   # Semantic near-duplicate grouping bounds (docs/adr/0007-semantic-deduplication-
   # relevant-information.md). candidate-pool-size caps the AI comparisons per item
@@ -111,3 +122,14 @@ signal-engine:
   # (Q4/T16) nor the summary form/length (Q14).
   signal-pipeline:
     batch-limit: ${SIGNAL_PIPELINE_BATCH_LIMIT:50}
+
+  # Knowledge base indexing reliability (docs/adr/0018-pipeline-reliability.md). claim-lease is how
+  # long a run holds the right to index one content before another run may take it over
+  # (correctness does not depend on it: a superseded run is rejected when it stores its result);
+  # max-failed-attempts bounds a content that keeps failing; reconciliation-batch-limit caps one
+  # reconciliation sweep. Provisional defaults (T9).
+  rag:
+    indexing:
+      claim-lease: ${RAG_INDEXING_CLAIM_LEASE:15m}
+      max-failed-attempts: ${RAG_INDEXING_MAX_FAILED_ATTEMPTS:5}
+      reconciliation-batch-limit: ${RAG_INDEXING_RECONCILIATION_BATCH_LIMIT:20}

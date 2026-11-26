@@ -1,24 +1,28 @@
 package org.signalengine.infrastructure.ai;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 import java.net.http.HttpClient;
 import org.junit.jupiter.api.Test;
 import org.signalengine.application.ai.AiCapabilityInvoker;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.jdbc.core.simple.JdbcClient;
 
 class AiFoundationConfigurationTest {
 
   private final ApplicationContextRunner contextRunner =
-      new ApplicationContextRunner().withUserConfiguration(AiFoundationConfiguration.class);
+      new ApplicationContextRunner()
+          .withUserConfiguration(AiFoundationConfiguration.class)
+          .withBean(JdbcClient.class, () -> mock(JdbcClient.class));
 
   @Test
-  void wiresTheHttpInvokerAsTheAiCapabilityPort() {
+  void wiresTheSuspendingInvokerAsTheAiCapabilityPort() {
     contextRunner.run(
         context -> {
           assertThat(context).hasSingleBean(AiCapabilityInvoker.class);
           assertThat(context.getBean(AiCapabilityInvoker.class))
-              .isInstanceOf(HttpAiCapabilityInvoker.class);
+              .isInstanceOf(SuspendingAiCapabilityInvoker.class);
           assertThat(context).hasSingleBean(HttpClient.class);
         });
   }

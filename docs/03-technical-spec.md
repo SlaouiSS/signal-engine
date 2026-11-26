@@ -1182,7 +1182,12 @@ retrieval strategy are for `05-`, `07-`, and `08-`.
 ### 13.2 Retryable vs non-retryable
 
 - **Retryable:** transient infrastructure faults, timeouts, source unreachable,
-  provider transport/5xx.
+  provider transport/5xx (and the standard "try again later" statuses 408, 425, 429).
+  A provider HTTP error status is otherwise **permanent**; the statuses that mean the provider
+  *configuration* was refused (401, 402, 403, 404, 410) suspend the capability rather than fail
+  items, and so does a rejection that only looks specific to one request (400, 422…) while the
+  capability has not been seen working recently; once it has, that rejection fails the item
+  (`docs/adr/0018-pipeline-reliability.md`).
 - **Non-retryable:** validation failures, contract violations, domain rule
   violations, invalid AI output after the bounded repair, "no usable content".
 - Non-retryable failures move the item to `FAILED` with a stable reason code and

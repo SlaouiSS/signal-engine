@@ -712,7 +712,7 @@ the capabilities of Section 4):
 |---|---|---|
 | Invalid AI output | The model's structured output fails schema validation, even after the one bounded repair attempt | Capability returns a typed `AI_OUTPUT_INVALID` error; Java marks the affected item/request pending or failed |
 | Insufficient source context | The supplied content/passages do not support a confident result | Not a hard failure — an explicit, defined outcome (Section 8): "insufficient information," an uncertainty flag, or a "not relevant" judgement with a reason |
-| Provider/model failure | The LLM/embedding runtime is unavailable or errors | Treated as an infrastructure/AI-provider failure at the provider-adapter boundary; retryable per the transport-failure category |
+| Provider/model failure | The LLM/embedding runtime is unavailable or errors | Treated as an infrastructure/AI-provider failure at the provider-adapter boundary; retryable per the transport-failure category. A permanent HTTP status is not retryable; one that means the provider configuration was refused (credentials, retired model) suspends the capability instead of failing items (`docs/adr/0018-pipeline-reliability.md`) |
 | Timeout | A call exceeds its configured timeout | Retryable, bounded, per the timeout/backoff policy already defined in `docs/03-technical-spec.md` Section 13.3–13.4 |
 | Inability to produce a valid result after retries | Repair attempt and/or retries exhausted | The item/request is left in a failed/pending state, visible in activity, never silently dropped and never fabricated (`docs/02-functional-spec.md` R11) |
 

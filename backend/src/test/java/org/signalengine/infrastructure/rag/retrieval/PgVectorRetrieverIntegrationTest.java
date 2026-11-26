@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.signalengine.infrastructure.persistence.AbstractPersistenceIntegrationTest;
+import org.signalengine.infrastructure.rag.SeededPassageIndex;
 import org.signalengine.rag.ComponentDescriptor;
 import org.signalengine.rag.RagComponentType;
 import org.signalengine.rag.chunking.Passage;
@@ -79,7 +80,7 @@ class PgVectorRetrieverIntegrationTest extends AbstractPersistenceIntegrationTes
             Map.of("author", "A. Writer"));
     Passage passage =
         new Passage(id, 0, "passage body for " + id, provenance, Map.of("language", "en"));
-    store.save(new IndexedPassage(contentId, passage, CHUNKER, vector, model));
+    seeded().add(new IndexedPassage(contentId, passage, CHUNKER, vector, model));
   }
 
   @Test
@@ -244,5 +245,14 @@ class PgVectorRetrieverIntegrationTest extends AbstractPersistenceIntegrationTes
             .doesNotStartWith("org.springframework.jdbc");
       }
     }
+  }
+
+  private SeededPassageIndex seededPassageIndex;
+
+  private SeededPassageIndex seeded() {
+    if (seededPassageIndex == null) {
+      seededPassageIndex = new SeededPassageIndex(store);
+    }
+    return seededPassageIndex;
   }
 }

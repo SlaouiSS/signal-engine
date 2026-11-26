@@ -20,7 +20,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from app.capabilities.base import HandledResult
-from app.errors import ProviderTimeout, ProviderUnavailable, RequestInvalid
+from app.errors import RequestInvalid, to_capability_error
 from app.prompts import PromptLibrary
 from app.providers.base import GenerationRequest, LlmProvider, ProviderError
 
@@ -77,9 +77,7 @@ class SemanticChunkBoundaryCapability:
                 )
             )
         except ProviderError as provider_error:
-            if provider_error.timed_out:
-                raise ProviderTimeout(provider_error.message) from provider_error
-            raise ProviderUnavailable(provider_error.message) from provider_error
+            raise to_capability_error(provider_error) from provider_error
 
         result = SemanticChunkBoundaryResult(rawText=generation.text.strip())
         return HandledResult(

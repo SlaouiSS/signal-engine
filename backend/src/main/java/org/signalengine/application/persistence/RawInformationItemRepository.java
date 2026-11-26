@@ -49,16 +49,17 @@ public interface RawInformationItemRepository {
   /**
    * A bounded page of items in a given processing state — the pending work a pipeline stage picks
    * up (docs/03-technical-spec.md Section 6.3, 10.3). Fair across sources: each source's own items
-   * are still returned oldest first, but the page interleaves round-robin across every source that
-   * has pending items, so one source with a very large backlog cannot monopolize the page and
-   * starve the others.
+   * are still returned in order of their last attempt, oldest first (an item that failed
+   * transiently goes behind the ones not attempted yet, see {@link #recordRetryableAttempt}), but
+   * the page interleaves round-robin across every source that has pending items, so one source with
+   * a very large backlog cannot monopolize the page and starve the others.
    */
   List<RawInformationItem> findByProcessingState(String processingState, int limit);
 
   /**
-   * A bounded page of items in any of the given processing states, oldest first — the pending work
-   * for a multi-step stage that resumes items part-way through (docs/03-technical-spec.md Section
-   * 13.6).
+   * A bounded page of items in any of the given processing states, oldest last attempt first — the
+   * pending work for a multi-step stage that resumes items part-way through
+   * (docs/03-technical-spec.md Section 13.6).
    */
   List<RawInformationItem> findByProcessingStateIn(List<String> processingStates, int limit);
 
@@ -88,4 +89,15 @@ public interface RawInformationItemRepository {
       String expectedState,
       ProcessingState newState,
       UUID relevantInformationId);
+
+  /**
+   * Records that a stage attempted an item and failed with a <em>retryable</em> error, leaving the
+   * item in {@code expectedState}: only its last-attempt time moves, so a page of pending work
+   * (oldest attempt first) puts it behind the items not attempted yet. Without this, items that
+   * keep failing transiently would stay at the head of every page and starve the rest of the queue
+   * (docs/05-data-model.md Section 14: one failed item must not block unrelated items). Returns
+   * {@code false} if the item is no longer in {@code expectedState}.
+   */
+  boolean recordRetryableAttempt(
+      UUID rawInformationItemId, String expectedState, java.time.Instant attemptedAt);
 }

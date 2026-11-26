@@ -1,6 +1,7 @@
 package org.signalengine.infrastructure.persistence.rawinformation;
 
 import java.sql.SQLException;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -123,6 +124,13 @@ class RawInformationItemRepositoryAdapter implements RawInformationItemRepositor
         newState.failureRetryable(),
         newState.updatedAt(),
         relevantInformationId);
+  }
+
+  @Override
+  public boolean recordRetryableAttempt(
+      UUID rawInformationItemId, String expectedState, Instant attemptedAt) {
+    return rawInformationItemCrudRepository.recordRetryableAttempt(
+        rawInformationItemId, expectedState, attemptedAt);
   }
 
   private static RawInformationItemRow toRow(RawInformationItem item) {
