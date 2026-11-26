@@ -23,6 +23,7 @@ from app.providers.base import (
     GenerationRequest,
     GenerationResult,
     ProviderError,
+    call_within,
     http_status_error,
 )
 
@@ -50,7 +51,9 @@ def _base_model_name(model: str) -> str:
 
 def _post_json(url: str, body: dict[str, Any], timeout: float) -> httpx.Response:
     try:
-        response = httpx.post(url, json=body, timeout=timeout)
+        response = call_within(
+            timeout, "ollama", lambda: httpx.post(url, json=body, timeout=timeout)
+        )
         response.raise_for_status()
         return response
     except httpx.TimeoutException as timeout_error:

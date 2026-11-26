@@ -1,11 +1,14 @@
 package org.signalengine.infrastructure.rag.indexing;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import org.signalengine.application.signal.BlockedIndexing;
 import org.signalengine.application.signal.KnowledgeBaseIndexer;
 import org.signalengine.domain.RawInformationItem;
 import org.signalengine.domain.Source;
+import org.signalengine.infrastructure.ai.AiCallDeadline;
 import org.signalengine.infrastructure.rag.chunking.SignalEngineIndexableContent;
 import org.signalengine.rag.indexing.IndexingPipeline;
 import org.signalengine.rag.indexing.IndexingReport;
@@ -22,19 +25,38 @@ class SignalEngineKnowledgeBaseIndexer implements KnowledgeBaseIndexer {
   private final IndexingPipeline indexingPipeline;
   private final KnowledgeBaseIndexBacklog backlog;
 
+  private final AiCallDeadline callDeadline;
+  private final Duration timeBudget;
+
   SignalEngineKnowledgeBaseIndexer(
-      IndexingPipeline indexingPipeline, KnowledgeBaseIndexBacklog backlog) {
+      IndexingPipeline indexingPipeline,
+      KnowledgeBaseIndexBacklog backlog,
+      AiCallDeadline callDeadline,
+      Duration timeBudget) {
     this.indexingPipeline = indexingPipeline;
     this.backlog = backlog;
+    this.callDeadline = callDeadline;
+    this.timeBudget = timeBudget;
   }
 
   @Override
   public IndexingReport index(RawInformationItem item, Source source) {
-    return indexingPipeline.index(SignalEngineIndexableContent.from(item, source));
+    return callDeadline.within(
+        timeBudget, () -> indexingPipeline.index(SignalEngineIndexableContent.from(item, source)));
   }
 
   @Override
-  public List<UUID> findItemIdsAwaitingIndexing(Instant now, int maxFailedAttempts, int limit) {
-    return backlog.findItemIdsAwaitingIndexing(now, maxFailedAttempts, limit);
+  public List<UUID> findItemIdsAwaitingIndexing(Instant now, int limit) {
+    return backlog.findItemIdsAwaitingIndexing(now, limit);
+  }
+
+  @Override
+  public List<BlockedIndexing> findBlockedIndexing() {
+    return backlog.findBlockedIndexing();
+  }
+
+  @Override
+  public List<UUID> requeueBlockedIndexing() {
+    return backlog.requeueBlockedIndexing();
   }
 }

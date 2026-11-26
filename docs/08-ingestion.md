@@ -594,26 +594,19 @@ distributed locks, queues, Kafka, Redis, or workflow engines are introduced
 
 ## 16. Collection Cadence and Scheduling
 
-**Current implementation.** There is no scheduler. `StartupIngestionRunner`
-(backend, infrastructure layer) runs the ingestion pipeline — collect → group →
-process, over the sources that are configured and enabled at that moment — once,
-in the background, when the backend process starts. It never delays startup and a
-failure in it is not a startup failure. Because every stage is idempotent,
-restarting the backend re-runs the pipeline without duplicating work. There is no
-recurring trigger and no collect-now endpoint or other manual trigger.
-
-**Target design (not built).** Scheduling is a Java responsibility: a backend
-scheduler is intended to trigger collection and drive pending work; no Python
-capability schedules anything (`docs/03-technical-spec.md` Section 6.3, 6.5).
-
-The ingestion architecture is designed to support **automated collection** —
-collection running repeatedly without the user manually intervening after
-sources are configured (`docs/02-functional-spec.md` Section 6.1). The startup
-run above is the only automation implemented today.
+**Current implementation.** `PipelineScheduler` (backend, infrastructure layer)
+runs a pipeline cycle — collect → group → process → reconcile the knowledge base
+index — when the backend starts, and again a fixed delay (1 h, provisional) after
+each cycle ends (`docs/adr/0019-pipeline-automation.md`). A cycle never overlaps
+the previous one on the single backend instance, never delays startup, and each
+stage is bounded in time and batches. Sources are collected the least recently
+attempted first. Scheduling is a Java responsibility; no Python capability
+schedules anything (`docs/03-technical-spec.md` Section 6.3, 6.5). There is no
+collect-now endpoint or other manual collection trigger.
 
 **Preserved, not decided here:**
 
-- **Q9** — the collection cadence, and whether it is user-configurable
+- **Q9** — whether the cadence is user-configurable, and its final value
   (`docs/02-functional-spec.md` Q9);
 - **Q8** — whether a manual "collect now" trigger exists
   (`docs/02-functional-spec.md` Q8);
@@ -622,8 +615,7 @@ run above is the only automation implemented today.
 - **T17** — manual "collect now" and manual reprocessing controls, and whether
   they are exposed as endpoints (`docs/03-technical-spec.md` Section 24, T17).
 
-No cron frequency, scheduler library, or exact interval is chosen here, and no
-external workflow scheduler is introduced — scheduling remains an in-process
+No external workflow scheduler is introduced — scheduling remains an in-process
 Java responsibility (`docs/03-technical-spec.md` Section 6.5, 25).
 
 ---
@@ -660,8 +652,8 @@ known to work (it succeeded recently); otherwise the cause is uncertain and the 
 suspended instead, so a refused model parameter cannot turn a batch into permanent failures
 (`docs/adr/0018-pipeline-reliability.md`).
 
-**Existing bounded retry behavior is respected, not redefined.** Retries are
-bounded, with exponential backoff and jitter, applied only to retryable
+**Retries are bounded** and now implemented (`docs/adr/0019-pipeline-automation.md`),
+with exponential backoff and jitter, applied only to retryable
 categories (`docs/03-technical-spec.md` Section 13.2–13.3). The concrete
 retry counts, backoff parameters, and timeout values in
 `docs/03-technical-spec.md` Section 13.3–13.4 are **proposed defaults, open

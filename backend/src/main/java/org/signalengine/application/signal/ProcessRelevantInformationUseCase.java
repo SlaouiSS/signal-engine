@@ -2,6 +2,7 @@ package org.signalengine.application.signal;
 
 import java.util.List;
 import java.util.UUID;
+import org.signalengine.application.pipeline.StageBudget;
 
 /**
  * Input port: drive one {@link org.signalengine.domain.RelevantInformation} record through the
@@ -18,6 +19,13 @@ public interface ProcessRelevantInformationUseCase {
 
   ProcessingReport process(UUID relevantInformationId);
 
-  /** Process a bounded batch of records still somewhere in this pipeline. */
-  List<ProcessingReport> processPending();
+  /**
+   * Process a bounded batch of records still somewhere in this pipeline, starting no further record
+   * or step once {@code budget} is exhausted.
+   */
+  List<ProcessingReport> processPending(StageBudget budget);
+
+  default List<ProcessingReport> processPending() {
+    return processPending(StageBudget.unlimited());
+  }
 }

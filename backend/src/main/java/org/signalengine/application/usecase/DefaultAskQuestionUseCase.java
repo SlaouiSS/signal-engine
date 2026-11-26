@@ -2,6 +2,8 @@ package org.signalengine.application.usecase;
 
 import static org.signalengine.application.usecase.Guards.requireText;
 
+import org.signalengine.application.InvalidInputException;
+import org.signalengine.application.ai.AiInputLimits;
 import org.signalengine.rag.execution.RagExecution;
 import org.signalengine.rag.generation.RagAnswer;
 import org.signalengine.rag.pipeline.RagPipeline;
@@ -25,6 +27,10 @@ public final class DefaultAskQuestionUseCase implements AskQuestionUseCase {
   @Override
   public RagAnswer askQuestion(String questionText, int topK) {
     requireText(questionText, "question");
+    if (AiInputLimits.exceeds(questionText, AiInputLimits.ANSWER_QUESTION)) {
+      throw new InvalidInputException(
+          "question must be at most " + AiInputLimits.ANSWER_QUESTION + " characters");
+    }
     RagExecution execution = ragPipeline.execute(Query.of(questionText, topK));
     RagAnswer answer = execution.answer();
     if (answer == null) {

@@ -13,10 +13,12 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.UUID;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
@@ -29,9 +31,12 @@ import org.signalengine.application.dedup.NearDuplicateAssessor.NearDuplicateAss
 import org.signalengine.application.dedup.NearDuplicateAssessor.Query;
 import org.signalengine.application.dedup.NearDuplicateAssessor.Verdict;
 import org.signalengine.application.persistence.ActivityRecordRepository;
+import org.signalengine.application.persistence.FailedAttemptKind;
 import org.signalengine.application.persistence.RawInformationItemRepository;
 import org.signalengine.application.persistence.RelevantInformationRepository;
 import org.signalengine.application.persistence.UnitOfWork;
+import org.signalengine.application.pipeline.ItemRetryScheduler;
+import org.signalengine.application.pipeline.RetryPolicy;
 import org.signalengine.domain.ActivityRecord;
 import org.signalengine.domain.ProcessingState;
 import org.signalengine.domain.RawInformationItem;
@@ -57,6 +62,11 @@ class DefaultGroupIntoRelevantInformationUseCaseTest {
           assessor,
           activity,
           unitOfWork,
+          new ItemRetryScheduler(
+              rawItems,
+              unitOfWork,
+              new RetryPolicy(3, 5, Duration.ofHours(1), 2, Duration.ofHours(24), 0, () -> 0),
+              Clock.fixed(NOW, ZoneOffset.UTC)),
           Clock.fixed(NOW, ZoneOffset.UTC),
           POOL_SIZE,
           BATCH_LIMIT);
@@ -137,7 +147,7 @@ class DefaultGroupIntoRelevantInformationUseCaseTest {
   void aSuspendedCapabilityDoesNotStopTheItemsThatNeedNoAssessment() {
     RawInformationItem needsAssessment = normalizedItem(UUID.randomUUID(), "first");
     RawInformationItem needsNone = normalizedItem(UUID.randomUUID(), "second");
-    when(rawItems.findByProcessingState(ProcessingState.NORMALIZED, BATCH_LIMIT))
+    when(rawItems.findDueByProcessingState(ProcessingState.NORMALIZED, NOW, BATCH_LIMIT))
         .thenReturn(List.of(needsAssessment, needsNone));
     when(rawItems.findById(needsAssessment.id())).thenReturn(Optional.of(needsAssessment));
     when(rawItems.findById(needsNone.id())).thenReturn(Optional.of(needsNone));
@@ -161,7 +171,7 @@ class DefaultGroupIntoRelevantInformationUseCaseTest {
   void theSuspensionIsSummarisedByOneActivityRecordAndOnlyTheSuspectItemIsMovedBehindTheOthers() {
     RawInformationItem suspect = normalizedItem(UUID.randomUUID(), "first");
     RawInformationItem skipped = normalizedItem(UUID.randomUUID(), "second");
-    when(rawItems.findByProcessingState(ProcessingState.NORMALIZED, BATCH_LIMIT))
+    when(rawItems.findDueByProcessingState(ProcessingState.NORMALIZED, NOW, BATCH_LIMIT))
         .thenReturn(List.of(suspect, skipped));
     when(rawItems.findById(suspect.id())).thenReturn(Optional.of(suspect));
     when(rawItems.findById(skipped.id())).thenReturn(Optional.of(skipped));
@@ -180,24 +190,37 @@ class DefaultGroupIntoRelevantInformationUseCaseTest {
   }
 
   @Test
-  void aTransientAssessmentFailureMovesTheItemBehindTheOnesNotAttemptedYet() {
+  void aTransientAssessmentFailureUsesOneAttemptAndMakesTheItemWait() {
     UUID id = UUID.randomUUID();
-    RawInformationItem item = normalizedItem(id, "text");
-    when(rawItems.findById(id)).thenReturn(Optional.of(item));
+    when(rawItems.findById(id)).thenReturn(Optional.of(normalizedItem(id, "text")));
     poolContains(groupedCandidate(UUID.randomUUID(), UUID.randomUUID(), "older"));
-    assessorReturns(
-        new AssessmentUnavailable(
-            new AiError(
-                "AI_PROVIDER_TIMEOUT",
-                "timeout",
-                true,
-                "slow",
-                UUID.randomUUID(),
-                java.util.Map.of())));
+    assessorReturns(new AssessmentUnavailable(retryable("AI_PROVIDER_TIMEOUT")));
+    when(rawItems.countFailedAttempt(id, ProcessingState.NORMALIZED, FailedAttemptKind.TRANSIENT))
+        .thenReturn(OptionalInt.of(1));
 
     useCase.groupRawInformationItem(id);
 
-    verify(rawItems).recordRetryableAttempt(id, ProcessingState.NORMALIZED, NOW);
+    verify(rawItems)
+        .postponeNextAttempt(id, ProcessingState.NORMALIZED, NOW, NOW.plus(Duration.ofHours(1)));
+    verify(rawItems, never()).transitionFromState(any(), any(), any(), any());
+  }
+
+  @Test
+  void theLastAttemptSetsTheItemAsideAsARetryableFailure() {
+    UUID id = UUID.randomUUID();
+    when(rawItems.findById(id)).thenReturn(Optional.of(normalizedItem(id, "text")));
+    poolContains(groupedCandidate(UUID.randomUUID(), UUID.randomUUID(), "older"));
+    assessorReturns(new AssessmentUnavailable(retryable("AI_PROVIDER_TIMEOUT")));
+    when(rawItems.countFailedAttempt(id, ProcessingState.NORMALIZED, FailedAttemptKind.TRANSIENT))
+        .thenReturn(OptionalInt.of(3));
+
+    useCase.groupRawInformationItem(id);
+
+    ArgumentCaptor<ProcessingState> state = ArgumentCaptor.forClass(ProcessingState.class);
+    verify(rawItems).transitionFromState(eq(id), eq("normalized"), state.capture(), isNull());
+    assertThat(state.getValue().state()).isEqualTo(ProcessingState.FAILED);
+    assertThat(state.getValue().failureRetryable()).isTrue();
+    assertThat(state.getValue().failedStage()).isEqualTo("near_duplicate_assessment");
   }
 
   @Test
@@ -399,7 +422,8 @@ class DefaultGroupIntoRelevantInformationUseCaseTest {
   void theBatchIsBoundedAndIsolatesAFailingItem() {
     RawInformationItem ok = normalizedItem(UUID.randomUUID(), "ok text");
     RawInformationItem broken = normalizedItem(UUID.randomUUID(), "broken text");
-    when(rawItems.findByProcessingState("normalized", BATCH_LIMIT)).thenReturn(List.of(ok, broken));
+    when(rawItems.findDueByProcessingState("normalized", NOW, BATCH_LIMIT))
+        .thenReturn(List.of(ok, broken));
     when(rawItems.findById(ok.id())).thenReturn(Optional.of(ok));
     when(rawItems.findById(broken.id())).thenThrow(new RuntimeException("boom"));
     poolContains();
@@ -413,6 +437,7 @@ class DefaultGroupIntoRelevantInformationUseCaseTest {
         .extracting(GroupingReport::outcome)
         .containsExactlyInAnyOrder(
             GroupingReport.Outcome.CREATED_NEW, GroupingReport.Outcome.ASSESSMENT_FAILED);
+    verify(rawItems).countFailedAttempt(broken.id(), "normalized", FailedAttemptKind.UNEXPECTED);
   }
 
   // --- helpers ---------------------------------------------------------

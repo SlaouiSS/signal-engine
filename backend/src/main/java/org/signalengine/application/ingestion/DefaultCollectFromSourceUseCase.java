@@ -14,6 +14,7 @@ import org.signalengine.application.ingestion.CollectionOutcome.CollectionFailed
 import org.signalengine.application.persistence.ActivityRecordRepository;
 import org.signalengine.application.persistence.RawInformationItemRepository;
 import org.signalengine.application.persistence.SourceRepository;
+import org.signalengine.application.pipeline.StageBudget;
 import org.signalengine.domain.ActivityRecord;
 import org.signalengine.domain.ProcessingState;
 import org.signalengine.domain.RawInformationItem;
@@ -68,17 +69,23 @@ public final class DefaultCollectFromSourceUseCase implements CollectFromSourceU
 
     return switch (collector.collect(source)) {
       case CollectionFailed failed -> {
+        sourceRepository.recordCollectionAttempt(sourceId, false, clock.instant());
         recordActivity(sourceId, "failure", failed.reason());
         yield CollectionReport.failed(sourceId, failed.reason());
       }
-      case Collected collected -> persistAll(source, collected.items());
+      case Collected collected -> {
+        CollectionReport report = persistAll(source, collected.items());
+        sourceRepository.recordCollectionAttempt(sourceId, true, clock.instant());
+        yield report;
+      }
     };
   }
 
   @Override
-  public List<CollectionReport> collectFromEnabledSources() {
-    return sourceRepository.findAll().stream()
+  public List<CollectionReport> collectFromEnabledSources(StageBudget budget) {
+    return sourceRepository.findAllLeastRecentlyCollectedFirst().stream()
         .filter(Source::enabled)
+        .takeWhile(source -> !budget.exhausted())
         .map(this::collectOneIsolatingFailure)
         .toList();
   }
@@ -92,6 +99,7 @@ public final class DefaultCollectFromSourceUseCase implements CollectFromSourceU
       return collectFromSource(source.id());
     } catch (RuntimeException exception) {
       log.error("Unexpected failure collecting source {}", source.id(), exception);
+      sourceRepository.recordCollectionAttempt(source.id(), false, clock.instant());
       recordActivity(source.id(), "failure", "unexpected error: " + exception.getMessage());
       return CollectionReport.failed(source.id(), "unexpected error");
     }

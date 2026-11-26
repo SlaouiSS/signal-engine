@@ -34,6 +34,8 @@ import org.signalengine.application.persistence.SignalRepository;
 import org.signalengine.application.persistence.SourceRepository;
 import org.signalengine.application.persistence.SummaryRepository;
 import org.signalengine.application.persistence.UnitOfWork;
+import org.signalengine.application.pipeline.ItemRetryScheduler;
+import org.signalengine.application.pipeline.RetryPolicy;
 import org.signalengine.application.signal.DefaultProcessRelevantInformationUseCase;
 import org.signalengine.application.signal.ImportanceAssessor.ImportanceVerdict;
 import org.signalengine.application.signal.KnowledgeBaseIndexer;
@@ -71,7 +73,13 @@ class ProviderRejectionPipelineIntegrationTest extends AbstractPersistenceIntegr
 
   private static final AiCapabilitySuspensionProperties PROPERTIES =
       new AiCapabilitySuspensionProperties(
-          Duration.ofMinutes(10), Duration.ofHours(1), Duration.ofMinutes(6), Duration.ofHours(24));
+          Duration.ofMinutes(10),
+          Duration.ofHours(1),
+          Duration.ofMinutes(6),
+          Duration.ofHours(24),
+          3,
+          Duration.ofSeconds(30),
+          Duration.ofMinutes(5));
 
   @Autowired private SourceRepository sources;
   @Autowired private RawInformationItemRepository rawItems;
@@ -189,6 +197,11 @@ class ProviderRejectionPipelineIntegrationTest extends AbstractPersistenceIntegr
         indexer,
         activity,
         unitOfWork,
+        new ItemRetryScheduler(
+            rawItems,
+            unitOfWork,
+            new RetryPolicy(3, 5, Duration.ofHours(1), 2, Duration.ofHours(24), 0, () -> 0),
+            clock),
         clock,
         500);
   }

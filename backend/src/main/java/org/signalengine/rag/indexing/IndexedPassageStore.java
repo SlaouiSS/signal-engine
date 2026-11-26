@@ -66,12 +66,13 @@ public interface IndexedPassageStore {
       IndexClaim claim, String contentFingerprint, List<IndexedPassage> passages);
 
   /**
-   * Gives up a claim without storing anything, so the content can be claimed again at once. When
-   * {@code countAsFailedAttempt} is set the failure is recorded against the content, which bounds
-   * how often a content that keeps failing is attempted; a failure that is not the content's fault
-   * (a suspended capability) must not be counted. Does nothing if the claim was superseded.
+   * Gives up a claim without storing anything. A cause that counts is recorded against the content,
+   * which then waits before its next attempt and, once its limit is reached, is set aside as
+   * blocked with the reason kept; a cause that is not the content's costs nothing. A changed
+   * content fingerprint or chunker configuration starts again from zero. Does nothing if the claim
+   * was superseded.
    */
-  void abandon(IndexClaim claim, boolean countAsFailedAttempt);
+  void abandon(IndexClaim claim, AbandonedIndexing abandonment);
 
   /** Identity and configuration of the concrete store; overridden by real implementations. */
   default ComponentDescriptor descriptor() {

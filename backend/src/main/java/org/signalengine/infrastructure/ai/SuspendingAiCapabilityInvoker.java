@@ -1,6 +1,7 @@
 package org.signalengine.infrastructure.ai;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -91,11 +92,16 @@ public final class SuspendingAiCapabilityInvoker implements AiCapabilityInvoker 
       case Failed<R> failed when failed.error().rejectsProviderConfiguration() ->
           suspendedFailure(
               request, suspend(capability, failed.error(), failed.error().message()), false);
+      case Failed<R> failed when failed.error().contractMismatch() ->
+          countRejection(request, failed, probeInProgress);
       case Failed<R> failed
           when failed.error().rejectsSingleRequest()
               && (probeInProgress || !knownToWork(capability)) ->
           suspendedFailure(
               request, suspend(capability, failed.error(), uncertainCause(failed)), true);
+      case Failed<R> failed
+          when failed.error().retryable() && !Thread.currentThread().isInterrupted() ->
+          countTransientFailure(request, failed, probeInProgress);
       case Failed<R> failed -> {
         if (probeInProgress) {
           store.releaseProbe(capability, clock.instant());
@@ -103,6 +109,55 @@ public final class SuspendingAiCapabilityInvoker implements AiCapabilityInvoker 
         yield failed;
       }
     };
+  }
+
+  /**
+   * A request refused as invalid (or a contract violation) is ambiguous: it may be this input, or a
+   * deployment where the two sides disagree. A first refusal is blamed on its input, which the
+   * caller sets aside; a series of them with no success between is blamed on the deployment, and
+   * suspends the capability so that no further item is set aside.
+   */
+  private <R> AiCapabilityOutcome<R> countRejection(
+      AiCapabilityRequest request, Failed<R> failed, boolean probeInProgress) {
+    String capability = request.capability();
+    int consecutiveRejections = store.recordRejection(capability);
+    if (!probeInProgress && consecutiveRejections < properties.transientFailureThreshold()) {
+      return new Failed<>(failed.error().asRejectionOfThisInput());
+    }
+    String reason =
+        "%d request(s) in a row refused as invalid, the last one: %s"
+            .formatted(consecutiveRejections, failed.error().message());
+    return suspendedFailure(request, suspend(capability, failed.error(), reason), true);
+  }
+
+  /**
+   * The circuit breaker. A transient failure is returned as it is, until enough of them follow each
+   * other with no success: then the capability is suspended, the caller's item is preserved, and no
+   * further item attempt is used until a probe succeeds. A failed probe suspends again at once.
+   *
+   * <p>Interactive search and question answering share these capabilities, so a transient
+   * suspension has its own short cooldown: it ends soon after the provider is back, while still
+   * allowing at most one call per cooldown during an outage.
+   */
+  private <R> AiCapabilityOutcome<R> countTransientFailure(
+      AiCapabilityRequest request, Failed<R> failed, boolean probeInProgress) {
+    String capability = request.capability();
+    int consecutiveFailures = store.recordTransientFailure(capability);
+    if (!probeInProgress && consecutiveFailures < properties.transientFailureThreshold()) {
+      return failed;
+    }
+    String reason =
+        "%d transient failure(s) in a row, the last one: %s"
+            .formatted(consecutiveFailures, failed.error().message());
+    return suspendedFailure(
+        request,
+        suspend(
+            capability,
+            failed.error(),
+            reason,
+            properties.transientInitialCooldown(),
+            properties.transientMaxCooldown()),
+        true);
   }
 
   /** Whether the capability succeeded recently enough to prove that its configuration works. */
@@ -119,17 +174,23 @@ public final class SuspendingAiCapabilityInvoker implements AiCapabilityInvoker 
         + ": suspected configuration problem";
   }
 
+  /** Suspends with the long cooldown of a cause that someone has to fix. */
   private AiCapabilitySuspension suspend(String capability, AiError refusal, String reason) {
+    return suspend(
+        capability, refusal, reason, properties.initialCooldown(), properties.maxCooldown());
+  }
+
+  private AiCapabilitySuspension suspend(
+      String capability,
+      AiError refusal,
+      String reason,
+      Duration initialCooldown,
+      Duration maxCooldown) {
     Integer providerStatus =
         refusal.details().get("providerStatus") instanceof Number status ? status.intValue() : null;
     AiCapabilitySuspension suspension =
         store.suspend(
-            capability,
-            clock.instant(),
-            properties.initialCooldown(),
-            properties.maxCooldown(),
-            providerStatus,
-            reason);
+            capability, clock.instant(), initialCooldown, maxCooldown, providerStatus, reason);
     log.warn(
         "AI capability '{}' suspended until {} (status {}, {} consecutive): {}",
         capability,

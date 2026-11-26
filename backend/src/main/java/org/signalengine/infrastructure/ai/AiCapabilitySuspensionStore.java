@@ -128,17 +128,57 @@ class AiCapabilitySuspensionStore {
             """
             INSERT INTO ai_capability_health (capability, last_success_at)
             VALUES (:capability, :now)
-            ON CONFLICT (capability) DO UPDATE SET last_success_at = :now
+            ON CONFLICT (capability) DO UPDATE SET
+                last_success_at = :now,
+                consecutive_transient_failures = 0,
+                consecutive_rejections = 0
             """)
         .param("capability", capability)
         .param("now", utc(now))
         .update();
   }
 
+  /** Counts one more request refused as invalid since the last success, and returns the count. */
+  int recordRejection(String capability) {
+    return jdbcClient
+        .sql(
+            """
+            INSERT INTO ai_capability_health (capability, consecutive_rejections)
+            VALUES (:capability, 1)
+            ON CONFLICT (capability) DO UPDATE SET
+                consecutive_rejections = ai_capability_health.consecutive_rejections + 1
+            RETURNING consecutive_rejections
+            """)
+        .param("capability", capability)
+        .query(Integer.class)
+        .single();
+  }
+
+  /** Counts one more transient failure since the last success, and returns the count. */
+  int recordTransientFailure(String capability) {
+    return jdbcClient
+        .sql(
+            """
+            INSERT INTO ai_capability_health (capability, consecutive_transient_failures)
+            VALUES (:capability, 1)
+            ON CONFLICT (capability) DO UPDATE SET
+                consecutive_transient_failures =
+                    ai_capability_health.consecutive_transient_failures + 1
+            RETURNING consecutive_transient_failures
+            """)
+        .param("capability", capability)
+        .query(Integer.class)
+        .single();
+  }
+
   /** When a call of the capability last succeeded, if it ever did. */
   Optional<Instant> lastSuccess(String capability) {
     return jdbcClient
-        .sql("SELECT last_success_at FROM ai_capability_health WHERE capability = :capability")
+        .sql(
+            """
+            SELECT last_success_at FROM ai_capability_health
+            WHERE capability = :capability AND last_success_at IS NOT NULL
+            """)
         .param("capability", capability)
         .query((rs, rowNumber) -> rs.getObject("last_success_at", OffsetDateTime.class).toInstant())
         .optional();

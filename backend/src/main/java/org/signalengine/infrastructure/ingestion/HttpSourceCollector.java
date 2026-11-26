@@ -11,12 +11,15 @@ import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.signalengine.application.ingestion.CollectedItem;
 import org.signalengine.application.ingestion.CollectionOutcome;
 import org.signalengine.application.ingestion.CollectionOutcome.Collected;
@@ -96,8 +99,9 @@ final class HttpSourceCollector implements SourceCollector {
 
   @Override
   public CollectionOutcome collect(Source source) {
+    FetchDeadline deadline = FetchDeadline.after(properties.requestTimeout());
     try {
-      return fetch(source.reference(), 0)
+      return fetch(source.reference(), 0, deadline)
           .<CollectionOutcome>map(Collected::new)
           .orElseGet(() -> new CollectionFailed("no usable content", false));
     } catch (UnsafeUrlException unsafe) {
@@ -115,24 +119,24 @@ final class HttpSourceCollector implements SourceCollector {
    * connection) and unpinned in {@code finally}; a redirect hop pins its own hostname during the
    * recursive call.
    */
-  private Optional<List<CollectedItem>> fetch(String url, int redirectDepth)
+  private Optional<List<CollectedItem>> fetch(String url, int redirectDepth, FetchDeadline deadline)
       throws UnsafeUrlException, CollectionException {
     ValidatedFetchTarget target = urlValidator.validate(url);
     URI uri = target.uri();
     pin(target);
     try {
-      HttpResponse<InputStream> response = send(uri);
+      HttpResponse<InputStream> response = send(uri, deadline);
       int status = response.statusCode();
 
       if (status >= 300 && status < 400) {
-        return followRedirect(uri, response, redirectDepth);
+        return followRedirect(uri, response, redirectDepth, deadline);
       }
       if (status >= 400) {
         boolean retryable = status == 429 || status >= 500;
         throw new CollectionException("source returned HTTP " + status, retryable);
       }
 
-      String body = readBody(response);
+      String body = readBody(response, deadline);
       if (body.isBlank()) {
         return Optional.empty();
       }
@@ -228,11 +232,12 @@ final class HttpSourceCollector implements SourceCollector {
     }
   }
 
-  private HttpResponse<InputStream> send(URI uri) throws CollectionException {
+  private HttpResponse<InputStream> send(URI uri, FetchDeadline deadline)
+      throws CollectionException {
     HttpRequest request =
         HttpRequest.newBuilder(uri)
             .GET()
-            .timeout(properties.requestTimeout())
+            .timeout(deadline.remaining())
             .header("User-Agent", USER_AGENT)
             .header("Accept", "*/*")
             .build();
@@ -248,9 +253,9 @@ final class HttpSourceCollector implements SourceCollector {
   }
 
   private Optional<List<CollectedItem>> followRedirect(
-      URI from, HttpResponse<InputStream> response, int redirectDepth)
+      URI from, HttpResponse<InputStream> response, int redirectDepth, FetchDeadline deadline)
       throws UnsafeUrlException, CollectionException {
-    drain(response);
+    drain(response, deadline);
     if (redirectDepth >= properties.maxRedirects()) {
       throw new CollectionException("too many redirects", false);
     }
@@ -258,18 +263,19 @@ final class HttpSourceCollector implements SourceCollector {
     if (location == null || location.isBlank()) {
       throw new CollectionException("redirect without a Location header", false);
     }
-    return fetch(from.resolve(location).toString(), redirectDepth + 1);
+    return fetch(from.resolve(location).toString(), redirectDepth + 1, deadline);
   }
 
-  private String readBody(HttpResponse<InputStream> response) throws CollectionException {
+  private String readBody(HttpResponse<InputStream> response, FetchDeadline deadline)
+      throws CollectionException {
     long declaredLength = response.headers().firstValueAsLong("Content-Length").orElse(-1L);
     if (declaredLength > properties.maxResponseBytes()) {
       throw new CollectionException("response exceeds the size limit", false);
     }
 
     byte[] bytes;
-    try (InputStream body = response.body()) {
-      bytes = body.readNBytes(Math.toIntExact(properties.maxResponseBytes()) + 1);
+    try {
+      bytes = readWithinDeadline(response, deadline);
     } catch (IOException readError) {
       throw new CollectionException(
           "could not read the source response: " + readError.getMessage(), true);
@@ -347,18 +353,78 @@ final class HttpSourceCollector implements SourceCollector {
    * (docs/10-security.md Section 5–7). An oversized redirect body is a non-retryable failure; a
    * mid-read I/O error is tolerated because the body is only drained to release the connection.
    */
-  private void drain(HttpResponse<InputStream> response) throws CollectionException {
+  private void drain(HttpResponse<InputStream> response, FetchDeadline deadline)
+      throws CollectionException {
     long declaredLength = response.headers().firstValueAsLong("Content-Length").orElse(-1L);
     if (declaredLength > properties.maxResponseBytes()) {
       throw new CollectionException("redirect response exceeds the size limit", false);
     }
-    try (InputStream body = response.body()) {
-      byte[] drained = body.readNBytes(Math.toIntExact(properties.maxResponseBytes()) + 1);
+    try {
+      byte[] drained = readWithinDeadline(response, deadline);
       if (drained.length > properties.maxResponseBytes()) {
         throw new CollectionException("redirect response exceeds the size limit", false);
       }
     } catch (IOException ignored) {
       // draining a redirect body is best-effort; the connection is released regardless
+    }
+  }
+
+  /**
+   * Reads at most one byte more than the size limit, and never past {@code deadline}. The request
+   * timeout of {@link HttpClient} stops at the response headers, so a source that stops sending its
+   * body would otherwise block the caller for ever: closing the stream when the deadline passes is
+   * what ends the blocked read.
+   */
+  private byte[] readWithinDeadline(HttpResponse<InputStream> response, FetchDeadline deadline)
+      throws IOException, CollectionException {
+    InputStream body = response.body();
+    CompletableFuture<Void> readFinished = new CompletableFuture<>();
+    readFinished
+        .orTimeout(deadline.remaining().toNanos(), TimeUnit.NANOSECONDS)
+        .whenComplete(
+            (finished, expired) -> {
+              if (expired != null) {
+                closeQuietly(body);
+              }
+            });
+    try (body) {
+      byte[] bytes = body.readNBytes(Math.toIntExact(properties.maxResponseBytes()) + 1);
+      // A closed stream may also end like a complete one: never accept a body cut by the deadline.
+      deadline.requireNotPassed();
+      return bytes;
+    } catch (IOException readError) {
+      deadline.requireNotPassed();
+      throw readError;
+    } finally {
+      readFinished.complete(null);
+    }
+  }
+
+  private static void closeQuietly(InputStream body) {
+    try {
+      body.close();
+    } catch (IOException alreadyClosed) {
+      log.debug("Closing an expired source response failed: {}", alreadyClosed.toString());
+    }
+  }
+
+  /** The point in time by which one source must have been fetched, redirects and body included. */
+  private record FetchDeadline(long expiresAtNanos, Duration budget) {
+
+    static FetchDeadline after(Duration budget) {
+      return new FetchDeadline(System.nanoTime() + budget.toNanos(), budget);
+    }
+
+    /** What is left of the budget; never zero or negative, which the JDK client would reject. */
+    Duration remaining() {
+      return Duration.ofNanos(Math.max(1, expiresAtNanos - System.nanoTime()));
+    }
+
+    void requireNotPassed() throws CollectionException {
+      if (System.nanoTime() - expiresAtNanos >= 0) {
+        throw new CollectionException(
+            "the source did not finish responding within " + budget, true);
+      }
     }
   }
 

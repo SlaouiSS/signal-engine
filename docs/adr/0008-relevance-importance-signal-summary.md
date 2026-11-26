@@ -175,7 +175,8 @@ No new retry framework.
   whole Task 6A foundation (envelope, provider, prompt loader, repair, contract
   test).
 - `RawInformationItemRepository` gains `findByProcessingStateIn`; the crud
-  repository gains one `@Query`. `SummaryRepository` + its Spring Data JDBC
+  repository gains one `@Query`. (Since removed: pending work is paged per
+  processing state, `docs/adr/0019-pipeline-automation.md`.) `SummaryRepository` + its Spring Data JDBC
   adapter are new.
 - `ProcessingState` gains five states + factories.
 - **One migration, V10 (`summary`).** No change to any existing table.

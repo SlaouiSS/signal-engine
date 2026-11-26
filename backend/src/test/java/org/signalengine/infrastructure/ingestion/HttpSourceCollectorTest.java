@@ -1,6 +1,7 @@
 package org.signalengine.infrastructure.ingestion;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
@@ -15,6 +16,8 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -276,6 +279,88 @@ class HttpSourceCollectorTest {
 
     assertThat(outcome).isInstanceOf(CollectionFailed.class);
     assertThat(((CollectionFailed) outcome).retryable()).isTrue();
+  }
+
+  @Test
+  void aSourceThatStopsSendingItsBodyIsAbandonedWithinTheFetchTimeout() {
+    CountDownLatch testFinished = new CountDownLatch(1);
+    handle(
+        "/stalls",
+        exchange -> {
+          exchange.getResponseHeaders().add("Content-Type", "text/plain");
+          exchange.sendResponseHeaders(200, 1000);
+          exchange.getResponseBody().write("partial".getBytes(StandardCharsets.UTF_8));
+          exchange.getResponseBody().flush();
+          awaitQuietly(testFinished);
+          exchange.close();
+        });
+    IngestionProperties oneSecondFetchTimeout =
+        new IngestionProperties(
+            Set.of("http"),
+            1_048_576,
+            2,
+            Duration.ofSeconds(2),
+            Duration.ofSeconds(1),
+            Set.of("http"));
+
+    try {
+      CollectionOutcome outcome =
+          assertTimeoutPreemptively(
+              Duration.ofSeconds(6),
+              () -> collectorWith(oneSecondFetchTimeout).collect(source(baseUrl + "/stalls")));
+
+      assertThat(outcome).isInstanceOf(CollectionFailed.class);
+      assertThat(((CollectionFailed) outcome).retryable()).isTrue();
+    } finally {
+      testFinished.countDown();
+    }
+  }
+
+  @Test
+  void theFetchTimeoutCoversTheWholeRedirectChainNotEachHop() {
+    handle(
+        "/slow-redirect",
+        exchange -> {
+          pause(Duration.ofMillis(700));
+          exchange.getResponseHeaders().add("Location", baseUrl + "/slow-redirect-target");
+          respond(exchange, 302, "", null);
+        });
+    handle(
+        "/slow-redirect-target",
+        exchange -> {
+          pause(Duration.ofMillis(700));
+          respond(exchange, 200, "arrived too late", "text/plain");
+        });
+    IngestionProperties oneSecondFetchTimeout =
+        new IngestionProperties(
+            Set.of("http"),
+            1_048_576,
+            2,
+            Duration.ofSeconds(2),
+            Duration.ofSeconds(1),
+            Set.of("http"));
+
+    CollectionOutcome outcome =
+        collectorWith(oneSecondFetchTimeout).collect(source(baseUrl + "/slow-redirect"));
+
+    assertThat(outcome).isInstanceOf(CollectionFailed.class);
+    assertThat(((CollectionFailed) outcome).retryable()).isTrue();
+  }
+
+  private static void pause(Duration duration) {
+    try {
+      Thread.sleep(duration.toMillis());
+    } catch (InterruptedException interrupted) {
+      Thread.currentThread().interrupt();
+    }
+  }
+
+  private static void awaitQuietly(CountDownLatch latch) {
+    try {
+      latch.await(30, TimeUnit.SECONDS);
+    } catch (InterruptedException interrupted) {
+      Thread.currentThread().interrupt();
+    }
   }
 
   // --- content extraction: RSS ------------------------------------------------

@@ -20,11 +20,13 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
+import org.signalengine.application.pipeline.RetryPolicy;
 import org.signalengine.infrastructure.persistence.AbstractPersistenceIntegrationTest;
 import org.signalengine.rag.ComponentDescriptor;
 import org.signalengine.rag.RagComponentType;
 import org.signalengine.rag.chunking.Passage;
 import org.signalengine.rag.embedding.EmbeddingModelDescriptor;
+import org.signalengine.rag.indexing.AbandonedIndexing;
 import org.signalengine.rag.indexing.ContentReplacement;
 import org.signalengine.rag.indexing.IndexClaim;
 import org.signalengine.rag.indexing.IndexedPassage;
@@ -58,7 +60,12 @@ class PgVectorIndexedPassageStoreReliabilityIntegrationTest
   private final String contentId = "content-" + UUID.randomUUID();
 
   private PgVectorIndexedPassageStore store() {
-    return new PgVectorIndexedPassageStore(jdbcClient, LEASE, clock);
+    return new PgVectorIndexedPassageStore(
+        jdbcClient,
+        LEASE,
+        new RetryPolicy(2, 2, Duration.ofHours(1), 2, Duration.ofHours(24), 0, () -> 0),
+        2,
+        clock);
   }
 
   private IndexedPassage passage(String suffix, ComponentDescriptor chunker) {
@@ -259,7 +266,7 @@ class PgVectorIndexedPassageStoreReliabilityIntegrationTest
 
     Optional<IndexClaim> forOtherContent = store.claim(contentId, "fp-changed", CHUNKER_V1);
     assertThat(forOtherContent).as("outdated: built from other content").isPresent();
-    store.abandon(forOtherContent.orElseThrow(), false);
+    store.abandon(forOtherContent.orElseThrow(), notTheContent());
 
     assertThat(store.claim(contentId, "fp-1", CHUNKER_V2))
         .as("outdated: built with another chunker configuration")
@@ -275,6 +282,17 @@ class PgVectorIndexedPassageStoreReliabilityIntegrationTest
     IndexClaim recovered = claim(store);
 
     assertThat(recovered.revision()).isGreaterThan(abandonedByACrash.revision());
+  }
+
+  @Test
+  void aRunThatOutlivesItsLeaseStillStoresItsResultWhenNobodyTookOver() {
+    PgVectorIndexedPassageStore store = store();
+    IndexClaim longRun = claim(store);
+    clock.advance(LEASE.multipliedBy(3)); // a 30 minute indexing under a 15 minute lease
+
+    replace(store, longRun, passage("a", CHUNKER_V1));
+
+    assertThat(marker().get("passage_count")).isEqualTo(1);
   }
 
   @Test
@@ -338,17 +356,70 @@ class PgVectorIndexedPassageStoreReliabilityIntegrationTest
     }
   }
 
+  private static AbandonedIndexing failedAttempt() {
+    return new AbandonedIndexing(AbandonedIndexing.Cause.FAILED_ATTEMPT, true, "provider timeout");
+  }
+
+  private static AbandonedIndexing notTheContent() {
+    return new AbandonedIndexing(AbandonedIndexing.Cause.NOT_THE_CONTENT, true, "suspended");
+  }
+
+  private IndexClaim claimSameContent(PgVectorIndexedPassageStore store) {
+    return store.claim(contentId, "fp-stable", CHUNKER_V1).orElseThrow();
+  }
+
   @Test
-  void anAbandonedClaimCanBeClaimedAgainAtOnceAndCountsTheFailedAttemptOnlyWhenAsked() {
+  void anAbandonedClaimIsReleasedAndOnlyACauseThatIsTheContentsIsCounted() {
     PgVectorIndexedPassageStore store = store();
 
-    store.abandon(claim(store), true);
-    store.abandon(claim(store), false);
+    store.abandon(claimSameContent(store), failedAttempt());
+    store.abandon(claimSameContent(store), notTheContent());
 
     assertThat(marker().get("failed_attempts")).isEqualTo(1);
-    assertThat(store.claim(contentId, "fp-after-abandon", CHUNKER_V1))
-        .as("released, so claimable at once")
-        .isPresent();
+    assertThat(marker().get("lease_until")).isNull();
+    assertThat(marker().get("blocked_since")).isNull();
+  }
+
+  @Test
+  void reachingTheLimitBlocksTheContentAndKeepsTheDiagnostic() {
+    PgVectorIndexedPassageStore store = store();
+
+    store.abandon(claimSameContent(store), failedAttempt());
+    assertThat(marker().get("next_attempt_at")).as("waits before the next attempt").isNotNull();
+    store.abandon(claimSameContent(store), failedAttempt());
+
+    assertThat(marker().get("blocked_since")).isNotNull();
+    assertThat(marker().get("next_attempt_at")).isNull();
+    assertThat(marker().get("last_failure_reason")).isEqualTo("provider timeout");
+    assertThat(marker().get("last_failure_recoverable")).isEqualTo(true);
+  }
+
+  @Test
+  void aContentThatKeepsExceedingItsTimeBudgetIsBlockedWithoutUsingItsAttempts() {
+    PgVectorIndexedPassageStore store = store();
+    AbandonedIndexing overrun =
+        new AbandonedIndexing(
+            AbandonedIndexing.Cause.TIME_BUDGET_EXCEEDED, true, "time budget spent");
+
+    store.abandon(claimSameContent(store), overrun);
+    store.abandon(claimSameContent(store), overrun);
+
+    assertThat(marker().get("time_budget_overruns")).isEqualTo(2);
+    assertThat(marker().get("failed_attempts")).isEqualTo(0);
+    assertThat(marker().get("blocked_since")).isNotNull();
+    assertThat(marker().get("last_failure_reason")).isEqualTo("time budget spent");
+  }
+
+  @Test
+  void aChangedContentStartsAgainFromZero() {
+    PgVectorIndexedPassageStore store = store();
+    store.abandon(claimSameContent(store), failedAttempt());
+    store.abandon(claimSameContent(store), failedAttempt());
+
+    store.claim(contentId, "fp-changed", CHUNKER_V1).orElseThrow();
+
+    assertThat(marker().get("failed_attempts")).isEqualTo(0);
+    assertThat(marker().get("blocked_since")).isNull();
   }
 
   @Test
@@ -358,7 +429,7 @@ class PgVectorIndexedPassageStoreReliabilityIntegrationTest
     clock.advance(LEASE.plusSeconds(1));
     IndexClaim newerRun = claim(store);
 
-    store.abandon(slowRun, true);
+    store.abandon(slowRun, failedAttempt());
 
     assertThat(marker().get("failed_attempts")).isEqualTo(0);
     assertThat(marker().get("lease_until")).as("the newer claim is still held").isNotNull();

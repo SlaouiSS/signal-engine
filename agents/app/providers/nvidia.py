@@ -22,6 +22,7 @@ from app.providers.base import (
     GenerationRequest,
     GenerationResult,
     ProviderError,
+    call_within,
     http_status_error,
 )
 
@@ -88,11 +89,15 @@ class NvidiaLlmProvider:
 
         started = time.monotonic()
         try:
-            response = httpx.post(
-                f"{self._base_url}/chat/completions",
-                json=body,
-                headers={"Authorization": f"Bearer {self._api_key}"},
-                timeout=timeout,
+            response = call_within(
+                request.timeout_seconds,
+                f"NVIDIA Build ({self._model})",
+                lambda: httpx.post(
+                    f"{self._base_url}/chat/completions",
+                    json=body,
+                    headers={"Authorization": f"Bearer {self._api_key}"},
+                    timeout=timeout,
+                ),
             )
             response.raise_for_status()
         except httpx.TimeoutException as timeout_error:

@@ -18,4 +18,16 @@ public interface SourceRepository {
   Optional<Source> findById(UUID id);
 
   List<Source> findAll();
+
+  /**
+   * Every source, those never collected first and then the least recently attempted, so a bounded
+   * collection stage does not always leave the same sources out.
+   */
+  List<Source> findAllLeastRecentlyCollectedFirst();
+
+  /**
+   * Records that a collection of the source was attempted: a success resets its count of
+   * consecutive failures, a failure increases it (docs/03-technical-spec.md Section 13.3).
+   */
+  void recordCollectionAttempt(UUID id, boolean succeeded, java.time.Instant attemptedAt);
 }

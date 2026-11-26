@@ -2,6 +2,8 @@ package org.signalengine.application.usecase;
 
 import static org.signalengine.application.usecase.Guards.requireText;
 
+import org.signalengine.application.InvalidInputException;
+import org.signalengine.application.ai.AiInputLimits;
 import org.signalengine.rag.query.Query;
 import org.signalengine.rag.retrieval.RetrievalResult;
 import org.signalengine.rag.retrieval.Retriever;
@@ -23,6 +25,10 @@ public final class DefaultSemanticSearchUseCase implements SemanticSearchUseCase
   @Override
   public RetrievalResult search(String queryText, int topK) {
     requireText(queryText, "search query");
+    if (AiInputLimits.exceeds(queryText, AiInputLimits.EMBED_TEXT)) {
+      throw new InvalidInputException(
+          "search query must be at most " + AiInputLimits.EMBED_TEXT + " characters");
+    }
     return retriever.retrieve(Query.of(queryText, topK));
   }
 }

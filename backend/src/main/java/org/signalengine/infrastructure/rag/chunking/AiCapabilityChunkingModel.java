@@ -9,6 +9,7 @@ import org.signalengine.application.ai.AiCapabilityFailureException;
 import org.signalengine.application.ai.AiCapabilityInvoker;
 import org.signalengine.application.ai.AiCapabilityOutcome;
 import org.signalengine.application.ai.AiCapabilityRequest;
+import org.signalengine.application.ai.AiInputLimits;
 
 /**
  * The {@code semantic-chunker} {@link ChunkingModel}, reaching a language model <b>only</b> through
@@ -49,6 +50,12 @@ public final class AiCapabilityChunkingModel implements ChunkingModel {
 
   @Override
   public ModelResponse execute(ChunkingRequest request) {
+    AiInputLimits.check(
+            CAPABILITY, "a chunking prompt", request.prompt(), AiInputLimits.CHUNK_BOUNDARY_PROMPT)
+        .ifPresent(
+            error -> {
+              throw new ModelException(error.message(), new AiCapabilityFailureException(error));
+            });
     AiCapabilityOutcome<BoundaryResult> outcome =
         invoker.invoke(
             AiCapabilityRequest.of(

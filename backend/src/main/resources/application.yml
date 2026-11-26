@@ -22,12 +22,26 @@ spring:
     url: ${DATABASE_URL:jdbc:postgresql://127.0.0.1:5432/signal_engine}
     username: ${DATABASE_USERNAME:signal_engine}
     password: ${DATABASE_PASSWORD:signal_engine}
+    hikari:
+      # Nothing may block the single pipeline thread for ever (docs/03-technical-spec.md Section
+      # 13.4; docs/adr/0019-pipeline-automation.md): per statement, per lock wait, per transaction,
+      # and, for a network that went silent, per socket read (seconds). Flyway connects on its own
+      # (below) and is not limited, so a long migration still completes.
+      connection-init-sql: >-
+        SET statement_timeout = '${DATABASE_STATEMENT_TIMEOUT:15s}';
+        SET lock_timeout = '${DATABASE_LOCK_TIMEOUT:5s}';
+        SET transaction_timeout = '${DATABASE_TRANSACTION_TIMEOUT:60s}'
+      data-source-properties:
+        socketTimeout: ${DATABASE_SOCKET_TIMEOUT_SECONDS:60}
 
   # Flyway Community, plain versioned SQL migrations, forward-only
   # (docs/03-technical-spec.md Section 4.8). Migrations run on startup against the
   # system of record.
   flyway:
     enabled: true
+    url: ${spring.datasource.url}
+    user: ${spring.datasource.username}
+    password: ${spring.datasource.password}
     locations: classpath:db/migration
     clean-disabled: true
 
@@ -45,7 +59,8 @@ management:
         # `flyway` exposes the applied-migration status as a read-only
         # diagnostic (docs/03-technical-spec.md Section 25, observability
         # direction).
-        include: health,info,flyway
+        # `metrics` carries the pipeline's stage durations and outcomes (docs/adr/0019).
+        include: health,info,flyway,metrics
   endpoint:
     health:
       probes:
@@ -107,6 +122,31 @@ signal-engine:
       # A permanent rejection that looks specific to one request (HTTP 400, 422...) is that
       # request's own fault only if the capability succeeded within this window.
       evidence-window: ${AI_SUSPENSION_EVIDENCE_WINDOW:24h}
+      # Transient failures in a row, with no success between them, that suspend a capability, so an
+      # outage cannot use up items' retry budgets (docs/adr/0019-pipeline-automation.md).
+      transient-failure-threshold: ${AI_SUSPENSION_TRANSIENT_FAILURE_THRESHOLD:3}
+      # A suspension caused by transient failures is short: search and question answering share the
+      # capabilities, and a recovered provider must be used again quickly.
+      transient-initial-cooldown: ${AI_SUSPENSION_TRANSIENT_INITIAL_COOLDOWN:30s}
+      transient-max-cooldown: ${AI_SUSPENSION_TRANSIENT_MAX_COOLDOWN:5m}
+
+  # The scheduled pipeline (docs/adr/0019-pipeline-automation.md): a cycle at startup, then one
+  # fixed-delay after each cycle ends. A stage starts no new unit of work once its budget is spent.
+  # Retries are bounded, with exponential backoff and jitter (docs/03-technical-spec.md Section
+  # 13.3). Provisional defaults (Q9, T9).
+  pipeline:
+    enabled: ${PIPELINE_ENABLED:true}
+    initial-delay: ${PIPELINE_INITIAL_DELAY:0s}
+    fixed-delay: ${PIPELINE_FIXED_DELAY:1h}
+    stage-budget: ${PIPELINE_STAGE_BUDGET:15m}
+    max-batches-per-stage: ${PIPELINE_MAX_BATCHES_PER_STAGE:5}
+    retry:
+      max-attempts: ${PIPELINE_RETRY_MAX_ATTEMPTS:3}
+      max-unexpected-failures: ${PIPELINE_RETRY_MAX_UNEXPECTED_FAILURES:5}
+      base-delay: ${PIPELINE_RETRY_BASE_DELAY:1h}
+      factor: ${PIPELINE_RETRY_FACTOR:2.0}
+      max-delay: ${PIPELINE_RETRY_MAX_DELAY:24h}
+      jitter-ratio: ${PIPELINE_RETRY_JITTER_RATIO:0.1}
 
   # Semantic near-duplicate grouping bounds (docs/adr/0007-semantic-deduplication-
   # relevant-information.md). candidate-pool-size caps the AI comparisons per item
@@ -130,6 +170,10 @@ signal-engine:
   # reconciliation sweep. Provisional defaults (T9).
   rag:
     indexing:
-      claim-lease: ${RAG_INDEXING_CLAIM_LEASE:15m}
+      claim-lease: ${RAG_INDEXING_CLAIM_LEASE:40m}
       max-failed-attempts: ${RAG_INDEXING_MAX_FAILED_ATTEMPTS:5}
       reconciliation-batch-limit: ${RAG_INDEXING_RECONCILIATION_BATCH_LIMIT:20}
+      # No AI call is started for a content once its indexing has run this long; a content that keeps
+      # exceeding it is kept and reported as blocked.
+      time-budget: ${RAG_INDEXING_TIME_BUDGET:30m}
+      max-time-budget-overruns: ${RAG_INDEXING_MAX_TIME_BUDGET_OVERRUNS:3}

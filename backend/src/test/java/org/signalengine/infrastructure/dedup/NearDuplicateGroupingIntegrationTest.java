@@ -20,6 +20,8 @@ import org.signalengine.application.persistence.RawInformationItemRepository;
 import org.signalengine.application.persistence.RelevantInformationRepository;
 import org.signalengine.application.persistence.SourceRepository;
 import org.signalengine.application.persistence.UnitOfWork;
+import org.signalengine.application.pipeline.ItemRetryScheduler;
+import org.signalengine.application.pipeline.RetryPolicy;
 import org.signalengine.domain.ProcessingState;
 import org.signalengine.domain.RawInformationItem;
 import org.signalengine.domain.RelevantInformation;
@@ -61,6 +63,12 @@ class NearDuplicateGroupingIntegrationTest extends AbstractPersistenceIntegratio
         assessor,
         activity,
         unitOfWork,
+        new ItemRetryScheduler(
+            rawItems,
+            unitOfWork,
+            new RetryPolicy(
+                3, 5, java.time.Duration.ofHours(1), 2, java.time.Duration.ofHours(24), 0, () -> 0),
+            Clock.fixed(Instant.parse("2026-03-01T10:00:00Z"), ZoneOffset.UTC)),
         Clock.fixed(Instant.parse("2026-03-01T10:00:00Z"), ZoneOffset.UTC),
         20,
         50);

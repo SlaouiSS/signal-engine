@@ -60,7 +60,9 @@ import org.springframework.jdbc.core.simple.JdbcClient;
  */
 class KnowledgeBaseIndexReconciliationIntegrationTest extends AbstractPersistenceIntegrationTest {
 
-  private static final int MAX_FAILED_ATTEMPTS = 3;
+  /** The configured default, which the store bean applies. */
+  private static final int MAX_FAILED_ATTEMPTS = 5;
+
   private static final int BATCH_LIMIT = 500;
 
   @Autowired private SourceRepository sources;
@@ -95,25 +97,26 @@ class KnowledgeBaseIndexReconciliationIntegrationTest extends AbstractPersistenc
             .chunker(chunkerInUse)
             .embeddingModel(embedding)
             .store(indexedPassageStore)
-            .failureCountsAsAttempt(
-                failure ->
-                    !AiCapabilityFailureException.findIn(failure)
-                        .map(AiError::capabilitySuspended)
-                        .orElse(false))
+            .failureClassifier(RagIndexingConfiguration::classify)
             .build();
     return new SignalEngineKnowledgeBaseIndexer(
-        pipeline, new KnowledgeBaseIndexBacklog(jdbcClient, chunkerInUse));
+        pipeline,
+        new KnowledgeBaseIndexBacklog(jdbcClient, chunkerInUse),
+        new org.signalengine.infrastructure.ai.AiCallDeadline(Clock.systemUTC()),
+        Duration.ofMinutes(30));
   }
 
   private DefaultReconcileKnowledgeBaseIndexUseCase useCase() {
     return new DefaultReconcileKnowledgeBaseIndexUseCase(
-        indexer(),
-        rawItems,
-        sources,
-        activity,
-        Clock.systemUTC(),
-        MAX_FAILED_ATTEMPTS,
-        BATCH_LIMIT);
+        indexer(), rawItems, sources, activity, Clock.systemUTC(), BATCH_LIMIT);
+  }
+
+  /** As if the backoff of a failed attempt had elapsed. */
+  private void elapseBackoff(RawInformationItem item) {
+    jdbcClient
+        .sql("UPDATE rag_content_index SET next_attempt_at = NULL WHERE content_id = :id")
+        .param("id", item.id().toString())
+        .update();
   }
 
   /** An item whose relevance is confirmed, with a real content hash like collection produces. */
@@ -161,7 +164,7 @@ class KnowledgeBaseIndexReconciliationIntegrationTest extends AbstractPersistenc
   }
 
   private List<UUID> pendingItemIds() {
-    return indexer().findItemIdsAwaitingIndexing(Instant.now(), MAX_FAILED_ATTEMPTS, BATCH_LIMIT);
+    return indexer().findItemIdsAwaitingIndexing(Instant.now(), BATCH_LIMIT);
   }
 
   /** The same chunker, announcing another configuration version. */
@@ -224,8 +227,10 @@ class KnowledgeBaseIndexReconciliationIntegrationTest extends AbstractPersistenc
 
     assertThat(failed.outcome()).isEqualTo(Outcome.FAILED);
     assertThat(passageCount(item)).isZero();
-    assertThat(pendingItemIds()).as("not lost: still pending").contains(item.id());
+    assertThat(pendingItemIds()).as("waits for its backoff").doesNotContain(item.id());
     assertThat(contentIndex(item).get("failed_attempts")).isEqualTo(1);
+    elapseBackoff(item);
+    assertThat(pendingItemIds()).as("not lost: pending again").contains(item.id());
 
     embedding.recover(marker);
     IndexReconciliationReport indexed = reportFor(useCase().reconcilePending(), item);
@@ -294,7 +299,7 @@ class KnowledgeBaseIndexReconciliationIntegrationTest extends AbstractPersistenc
     useCase().reconcilePending();
     List<UUID> pendingWithChangedConfiguration =
         new KnowledgeBaseIndexBacklog(jdbcClient, chunkerWithVersionSuffix("-changed"))
-            .findItemIdsAwaitingIndexing(Instant.now(), MAX_FAILED_ATTEMPTS, BATCH_LIMIT);
+            .findItemIdsAwaitingIndexing(Instant.now(), BATCH_LIMIT);
 
     assertThat(pendingItemIds()).doesNotContain(item.id());
     assertThat(pendingWithChangedConfiguration).contains(item.id());
@@ -333,6 +338,7 @@ class KnowledgeBaseIndexReconciliationIntegrationTest extends AbstractPersistenc
     assertThat(passageCount(item)).isZero();
 
     for (int sweep = 0; sweep < MAX_FAILED_ATTEMPTS + 2; sweep++) {
+      elapseBackoff(item);
       useCase().reconcilePending();
     }
 
@@ -382,12 +388,17 @@ class KnowledgeBaseIndexReconciliationIntegrationTest extends AbstractPersistenc
     embedding.failFor(marker, new EmbeddingException("embedding provider rejected the content"));
 
     for (int sweep = 0; sweep < MAX_FAILED_ATTEMPTS + 3; sweep++) {
+      elapseBackoff(item);
       useCase().reconcilePending();
     }
 
     assertThat(embedding.callsFor(marker)).isEqualTo(MAX_FAILED_ATTEMPTS);
     assertThat(contentIndex(item).get("failed_attempts")).isEqualTo(MAX_FAILED_ATTEMPTS);
     assertThat(pendingItemIds()).doesNotContain(item.id());
+    assertThat(indexer().findBlockedIndexing())
+        .filteredOn(blocked -> blocked.rawInformationItemId().equals(item.id()))
+        .singleElement()
+        .satisfies(blocked -> assertThat(blocked.reason()).contains("rejected the content"));
   }
 
   @Test
@@ -418,6 +429,78 @@ class KnowledgeBaseIndexReconciliationIntegrationTest extends AbstractPersistenc
             .query(String.class)
             .list();
     assertThat(messages).anyMatch(message -> message.contains("suspended"));
+  }
+
+  @Test
+  void anIndexingCutByItsTimeBudgetUsesNoAttemptAndLeavesNoPartialPassage() {
+    RawInformationItem item = relevantItem("content too large for its time budget");
+    AiError overrun =
+        new AiError(
+            "AI_TIME_BUDGET_EXCEEDED",
+            AiError.TIME_BUDGET_CATEGORY,
+            true,
+            "the time budget of this work is spent",
+            UUID.randomUUID(),
+            Map.of());
+    embedding.failFor(
+        marker,
+        new EmbeddingException("embed not called", new AiCapabilityFailureException(overrun)));
+
+    useCase().reconcilePending();
+
+    assertThat(contentIndex(item).get("time_budget_overruns")).isEqualTo(1);
+    assertThat(contentIndex(item).get("failed_attempts")).isEqualTo(0);
+    assertThat(contentIndex(item).get("lease_until")).isNull();
+    assertThat(passageCount(item)).isZero();
+  }
+
+  @Test
+  void aBlockedIndexingWithATransientCauseIsRequeuedOnceAndThenIndexed() {
+    RawInformationItem item = relevantItem("content waiting out a long provider problem");
+    AiError timeout =
+        new AiError("AI_PROVIDER_TIMEOUT", "timeout", true, "slow", UUID.randomUUID(), Map.of());
+    embedding.failFor(
+        marker, new EmbeddingException("embed failed", new AiCapabilityFailureException(timeout)));
+    for (int sweep = 0; sweep < MAX_FAILED_ATTEMPTS; sweep++) {
+      elapseBackoff(item);
+      useCase().reconcilePending();
+    }
+    assertThat(pendingItemIds()).doesNotContain(item.id());
+
+    List<UUID> requeued = indexer().requeueBlockedIndexing();
+
+    assertThat(requeued).contains(item.id());
+    assertThat(indexer().requeueBlockedIndexing()).doesNotContain(item.id());
+    assertThat(contentIndex(item).get("failed_attempts")).isEqualTo(0);
+    embedding.recover(marker);
+    assertThat(reportFor(useCase().reconcilePending(), item).outcome()).isEqualTo(Outcome.INDEXED);
+  }
+
+  @Test
+  void aContentRefusedForItsOwnInputIsBlockedAtOnceWithItsDiagnosticAndKept() {
+    RawInformationItem item = relevantItem("content with a passage over the embedding limit");
+    embedding.failFor(
+        marker,
+        new EmbeddingException(
+            "embed not called",
+            new AiCapabilityFailureException(
+                AiError.inputLimitExceeded("a text to embed has 40001 characters"))));
+
+    useCase().reconcilePending();
+    useCase().reconcilePending();
+
+    assertThat(embedding.callsFor(marker)).as("not attempted again").isEqualTo(1);
+    assertThat(contentIndex(item).get("blocked_since")).isNotNull();
+    assertThat(contentIndex(item).get("failed_attempts")).isEqualTo(0);
+    assertThat(passageCount(item)).isZero();
+    assertThat(indexer().findBlockedIndexing())
+        .filteredOn(blocked -> blocked.rawInformationItemId().equals(item.id()))
+        .singleElement()
+        .satisfies(
+            blocked -> {
+              assertThat(blocked.recoverable()).isTrue();
+              assertThat(blocked.reason()).contains("embed not called");
+            });
   }
 
   // --- concurrency ---------------------------------------------------------------

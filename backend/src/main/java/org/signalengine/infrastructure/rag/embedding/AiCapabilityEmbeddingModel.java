@@ -1,11 +1,14 @@
 package org.signalengine.infrastructure.rag.embedding;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import org.signalengine.application.ai.AiCapabilityFailureException;
 import org.signalengine.application.ai.AiCapabilityInvoker;
 import org.signalengine.application.ai.AiCapabilityOutcome;
 import org.signalengine.application.ai.AiCapabilityRequest;
+import org.signalengine.application.ai.AiError;
+import org.signalengine.application.ai.AiInputLimits;
 import org.signalengine.application.ai.AiResponseMetadata;
 import org.signalengine.rag.ComponentDescriptor;
 import org.signalengine.rag.RagComponentType;
@@ -35,6 +38,9 @@ public final class AiCapabilityEmbeddingModel implements EmbeddingModel {
   public static final int DEFAULT_CONTRACT_VERSION = 1;
 
   private static final String IMPLEMENTATION_ID = "ai-capability-embedding-model";
+
+  /** Keeps a call's body well under the AI service's request size limit, even fully escaped. */
+  private static final int MAX_CHARACTERS_PER_CALL = 1_000_000;
 
   private final AiCapabilityInvoker invoker;
   private final String capability;
@@ -84,39 +90,93 @@ public final class AiCapabilityEmbeddingModel implements EmbeddingModel {
     if (request.isEmpty()) {
       return EmbeddingResult.empty(EmbeddingModelDescriptor.unspecified());
     }
+    requireEveryTextWithinTheLimit(request.texts());
 
+    List<EmbeddingResult> batches =
+        batchesOf(request.texts()).stream().map(texts -> embedBatch(texts, request)).toList();
+    return batches.size() == 1 ? batches.getFirst() : combine(batches);
+  }
+
+  /** A text the capability is certain to refuse is neither sent nor shortened. */
+  private void requireEveryTextWithinTheLimit(List<String> texts) {
+    for (String text : texts) {
+      AiInputLimits.check(capability, "a text to embed", text, AiInputLimits.EMBED_TEXT)
+          .ifPresent(
+              error -> {
+                throw failure(error);
+              });
+    }
+  }
+
+  /**
+   * Splits the <em>list</em> of texts, never a text, into calls within the capability's limit on
+   * the number of texts and small enough for its request size limit.
+   */
+  private static List<List<String>> batchesOf(List<String> texts) {
+    List<List<String>> batches = new ArrayList<>();
+    List<String> batch = new ArrayList<>();
+    int characters = 0;
+    for (String text : texts) {
+      if (!batch.isEmpty()
+          && (batch.size() == AiInputLimits.EMBED_TEXTS_PER_CALL
+              || characters + text.length() > MAX_CHARACTERS_PER_CALL)) {
+        batches.add(batch);
+        batch = new ArrayList<>();
+        characters = 0;
+      }
+      batch.add(text);
+      characters += text.length();
+    }
+    batches.add(batch);
+    return batches;
+  }
+
+  private EmbeddingResult embedBatch(List<String> texts, EmbeddingRequest request) {
     AiCapabilityOutcome<EmbedResult> outcome =
         invoker.invoke(
             AiCapabilityRequest.of(
                 capability,
                 contractVersion,
-                new EmbedPayload(request.texts(), request.role().name().toLowerCase(Locale.ROOT))),
+                new EmbedPayload(texts, request.role().name().toLowerCase(Locale.ROOT))),
             EmbedResult.class);
 
     return switch (outcome) {
       case AiCapabilityOutcome.Produced<EmbedResult> produced ->
-          toResult(produced.result(), produced.metadata(), request);
-      case AiCapabilityOutcome.Failed<EmbedResult> failed ->
-          throw new EmbeddingException(
-              "the embed capability failed ["
-                  + failed.error().code()
-                  + "]: "
-                  + failed.error().message(),
-              new AiCapabilityFailureException(failed.error()));
+          toResult(produced.result(), produced.metadata(), texts.size());
+      case AiCapabilityOutcome.Failed<EmbedResult> failed -> throw failure(failed.error());
     };
   }
 
-  private EmbeddingResult toResult(
-      EmbedResult result, AiResponseMetadata metadata, EmbeddingRequest request) {
+  private static EmbeddingException failure(AiError error) {
+    return new EmbeddingException(
+        "the embed capability failed [" + error.code() + "]: " + error.message(),
+        new AiCapabilityFailureException(error));
+  }
+
+  private static EmbeddingResult combine(List<EmbeddingResult> batches) {
+    EmbeddingResult first = batches.getFirst();
+    List<float[]> vectors = new ArrayList<>();
+    for (EmbeddingResult batch : batches) {
+      if (!batch.model().equals(first.model())) {
+        throw new EmbeddingException("the embedding model changed between two calls");
+      }
+      for (int index = 0; index < batch.count(); index++) {
+        vectors.add(batch.vector(index));
+      }
+    }
+    return new EmbeddingResult(vectors, first.dimension(), first.model());
+  }
+
+  private EmbeddingResult toResult(EmbedResult result, AiResponseMetadata metadata, int textCount) {
     if (result.vectors() == null || result.dimension() <= 0) {
       throw new EmbeddingException("the embed capability returned no usable vectors");
     }
-    if (result.vectors().length != request.texts().size()) {
+    if (result.vectors().length != textCount) {
       throw new EmbeddingException(
           "the embed capability returned "
               + result.vectors().length
               + " vectors for "
-              + request.texts().size()
+              + textCount
               + " texts");
     }
     if (expectedDimension > 0 && result.dimension() != expectedDimension) {

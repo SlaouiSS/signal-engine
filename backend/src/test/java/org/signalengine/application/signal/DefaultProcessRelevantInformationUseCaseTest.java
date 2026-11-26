@@ -11,6 +11,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -18,6 +19,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.signalengine.application.InvalidInputException;
@@ -27,6 +29,9 @@ import org.signalengine.application.persistence.ActivityRecordRepository;
 import org.signalengine.application.persistence.AreaOfInterestRepository;
 import org.signalengine.application.persistence.InterestRepository;
 import org.signalengine.application.persistence.SourceRepository;
+import org.signalengine.application.pipeline.ItemRetryScheduler;
+import org.signalengine.application.pipeline.RetryPolicy;
+import org.signalengine.application.pipeline.StageBudget;
 import org.signalengine.application.signal.ImportanceAssessor.ImportanceVerdict;
 import org.signalengine.application.signal.ProcessingReport.Outcome;
 import org.signalengine.application.signal.RelevanceAssessor.RelevanceVerdict;
@@ -36,6 +41,8 @@ import org.signalengine.domain.Interest;
 import org.signalengine.domain.ProcessingState;
 import org.signalengine.domain.RawInformationItem;
 import org.signalengine.domain.RelevantInformation;
+import org.signalengine.domain.Signal;
+import org.signalengine.domain.SignalState;
 import org.signalengine.domain.Source;
 import org.signalengine.rag.embedding.EmbeddingException;
 import org.signalengine.rag.indexing.IndexingReport;
@@ -75,8 +82,17 @@ class DefaultProcessRelevantInformationUseCaseTest {
           knowledgeBaseIndexer,
           activity,
           new InMemoryPipelineRepositories.ImmediateUnitOfWork(),
+          retryScheduler(Clock.fixed(NOW, ZoneOffset.UTC)),
           Clock.fixed(NOW, ZoneOffset.UTC),
           50);
+
+  private ItemRetryScheduler retryScheduler(Clock clock) {
+    return new ItemRetryScheduler(
+        rawItems,
+        new InMemoryPipelineRepositories.ImmediateUnitOfWork(),
+        new RetryPolicy(3, 5, Duration.ofHours(1), 2, Duration.ofHours(24), 0, () -> 0),
+        clock);
+  }
 
   private UUID riId;
   private UUID anchorId;
@@ -302,6 +318,7 @@ class DefaultProcessRelevantInformationUseCaseTest {
         knowledgeBaseIndexer,
         activity,
         new InMemoryPipelineRepositories.ImmediateUnitOfWork(),
+        retryScheduler(clock),
         clock,
         batchLimit);
   }
@@ -346,6 +363,167 @@ class DefaultProcessRelevantInformationUseCaseTest {
     assertThat(anchorState())
         .as("the suspended record is untouched")
         .isEqualTo(ProcessingState.DEDUPLICATED);
+  }
+
+  @Test
+  void anItemWaitingForItsNextAttemptIsNotAssessedAgainBeforeItIsDue() {
+    relevanceReturns(new RelevanceVerdict.AssessmentUnavailable(retryable()));
+
+    useCase.processPending();
+    useCaseWith(Clock.fixed(NOW.plusSeconds(3599), ZoneOffset.UTC), 50).processPending();
+
+    verify(relevanceAssessor, times(1)).assess(any());
+  }
+
+  @Test
+  void theThirdTransientFailureSetsTheItemAsideAsRetryableAndKeepsItsContent() {
+    relevanceReturns(new RelevanceVerdict.AssessmentUnavailable(retryable()));
+
+    for (int attempt = 0; attempt < 3; attempt++) {
+      Instant later = NOW.plus(Duration.ofDays(attempt));
+      useCaseWith(Clock.fixed(later, ZoneOffset.UTC), 50).processPending();
+    }
+
+    RawInformationItem anchor = rawItems.findById(anchorId).orElseThrow();
+    assertThat(anchor.processingState().state()).isEqualTo(ProcessingState.FAILED);
+    assertThat(anchor.processingState().failureRetryable()).isTrue();
+    assertThat(anchor.processingState().failedStage()).isEqualTo("relevance_assessment");
+    assertThat(anchor.normalizedContent()).isNotBlank();
+  }
+
+  @Test
+  void anUnexpectedErrorUsesNoRetryBudgetButIsStillBounded() {
+    when(relevanceAssessor.assess(any())).thenThrow(new IllegalStateException("defect"));
+
+    for (int run = 0; run < 4; run++) {
+      useCaseWith(Clock.fixed(NOW.plus(Duration.ofDays(run)), ZoneOffset.UTC), 50).processPending();
+    }
+    assertThat(anchorState()).isEqualTo(ProcessingState.DEDUPLICATED);
+    assertThat(rawItems.transientFailures).isEmpty();
+
+    useCaseWith(Clock.fixed(NOW.plus(Duration.ofDays(9)), ZoneOffset.UTC), 50).processPending();
+
+    assertThat(anchorState()).isEqualTo(ProcessingState.FAILED);
+  }
+
+  @Test
+  void aCallCutShortByAShutdownUsesNoAttempt() {
+    when(relevanceAssessor.assess(any()))
+        .thenAnswer(
+            invocation -> {
+              Thread.currentThread().interrupt();
+              return new RelevanceVerdict.AssessmentUnavailable(retryable());
+            });
+
+    try {
+      useCase.process(riId);
+    } finally {
+      Thread.interrupted(); // clear the flag for the other tests
+    }
+
+    assertThat(rawItems.transientFailures).isEmpty();
+    assertThat(anchorState()).isEqualTo(ProcessingState.DEDUPLICATED);
+  }
+
+  @Test
+  void aSteadyInflowOfNewRecordsDoesNotStarveTheRecordsInLaterStates() {
+    UUID waitingForImportance = addPendingRecordInState(ProcessingState.relevant(NOW));
+    AtomicReference<Instant> now = new AtomicReference<>(NOW);
+    when(relevanceAssessor.assess(any()))
+        .thenAnswer(
+            invocation -> {
+              now.updateAndGet(current -> current.plusSeconds(600)); // a slow provider
+              return new RelevanceVerdict.Assessed(false, "off topic", Set.of(), Set.of());
+            });
+    importanceReturns(new ImportanceVerdict.Assessed(false, "routine"));
+
+    for (int cycle = 0; cycle < 5; cycle++) {
+      addAnotherPendingRecord();
+      addAnotherPendingRecord();
+      Clock clock = readingFrom(now);
+      useCaseWith(clock, 50).processPending(new StageBudget(now.get().plusSeconds(900), clock));
+    }
+
+    assertThat(
+            rawItems
+                .findByRelevantInformationId(waitingForImportance)
+                .get(0)
+                .processingState()
+                .state())
+        .isEqualTo(ProcessingState.NO_SIGNAL);
+  }
+
+  @Test
+  void withRoomForOneRecordPerRunTheLongestWaitingStateGetsItsTurn() {
+    UUID waitingLongest = addPendingRecordInState(ProcessingState.relevant(NOW.minusSeconds(3600)));
+    AtomicReference<Instant> now = new AtomicReference<>(NOW);
+    when(importanceAssessor.assess(any()))
+        .thenAnswer(
+            invocation -> {
+              now.updateAndGet(current -> current.plusSeconds(1200));
+              return new ImportanceVerdict.Assessed(false, "routine");
+            });
+    Clock clock = readingFrom(now);
+
+    useCaseWith(clock, 50).processPending(new StageBudget(NOW.plusSeconds(900), clock));
+
+    assertThat(
+            rawItems.findByRelevantInformationId(waitingLongest).get(0).processingState().state())
+        .isEqualTo(ProcessingState.NO_SIGNAL);
+    verifyNoInteractions(relevanceAssessor);
+  }
+
+  @Test
+  void noIndexingStartsOnceTheStageBudgetIsSpent() {
+    AtomicReference<Instant> now = new AtomicReference<>(NOW);
+    when(relevanceAssessor.assess(any()))
+        .thenAnswer(
+            invocation -> {
+              now.updateAndGet(current -> current.plusSeconds(1200));
+              return new RelevanceVerdict.Assessed(true, "relevant", Set.of(), Set.of());
+            });
+    Clock clock = readingFrom(now);
+
+    useCaseWith(clock, 50).processPending(new StageBudget(NOW.plusSeconds(900), clock));
+
+    verifyNoInteractions(knowledgeBaseIndexer);
+  }
+
+  private static Clock readingFrom(AtomicReference<Instant> now) {
+    return new Clock() {
+      @Override
+      public Instant instant() {
+        return now.get();
+      }
+
+      @Override
+      public java.time.ZoneId getZone() {
+        return ZoneOffset.UTC;
+      }
+
+      @Override
+      public Clock withZone(java.time.ZoneId zone) {
+        return this;
+      }
+    };
+  }
+
+  @Test
+  void recordsWaitingForASuspendedCapabilityDoNotHideTheRecordsThatNeedAnotherOne() {
+    int batchLimit = 3;
+    for (int i = 0; i < batchLimit; i++) {
+      UUID waitingForSummary =
+          addPendingRecordInState(ProcessingState.signalCreated(NOW.minusSeconds(60)));
+      signals.save(new Signal(null, waitingForSummary, SignalState.NEW, NOW, NOW));
+    }
+    summaryReturns(new SummaryOutcome.GenerationUnavailable(suspended()));
+    relevanceReturns(new RelevanceVerdict.Assessed(false, "off topic", Set.of(), Set.of()));
+
+    useCaseWith(Clock.fixed(NOW, ZoneOffset.UTC), batchLimit).processPending();
+
+    assertThat(anchorState())
+        .as("the record that needs relevance assessment is still selected")
+        .isEqualTo(ProcessingState.NOT_RELEVANT);
   }
 
   @Test

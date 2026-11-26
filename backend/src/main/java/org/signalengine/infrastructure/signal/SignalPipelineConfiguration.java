@@ -11,6 +11,7 @@ import org.signalengine.application.persistence.SignalRepository;
 import org.signalengine.application.persistence.SourceRepository;
 import org.signalengine.application.persistence.SummaryRepository;
 import org.signalengine.application.persistence.UnitOfWork;
+import org.signalengine.application.pipeline.ItemRetryScheduler;
 import org.signalengine.application.signal.DefaultImportanceAssessor;
 import org.signalengine.application.signal.DefaultProcessRelevantInformationUseCase;
 import org.signalengine.application.signal.DefaultRelevanceAssessor;
@@ -63,6 +64,7 @@ class SignalPipelineConfiguration {
       KnowledgeBaseIndexer knowledgeBaseIndexer,
       ActivityRecordRepository activityRecordRepository,
       UnitOfWork unitOfWork,
+      ItemRetryScheduler itemRetryScheduler,
       SignalPipelineProperties properties) {
     return new DefaultProcessRelevantInformationUseCase(
         relevantInformationRepository,
@@ -78,6 +80,7 @@ class SignalPipelineConfiguration {
         knowledgeBaseIndexer,
         activityRecordRepository,
         unitOfWork,
+        itemRetryScheduler,
         Clock.systemUTC(),
         properties.batchLimit());
   }

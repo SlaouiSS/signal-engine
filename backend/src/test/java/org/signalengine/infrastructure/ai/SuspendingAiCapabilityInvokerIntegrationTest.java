@@ -45,7 +45,10 @@ class SuspendingAiCapabilityInvokerIntegrationTest extends AbstractPersistenceIn
           Duration.ofMinutes(10),
           Duration.ofMinutes(40),
           Duration.ofMinutes(6),
-          Duration.ofHours(24));
+          Duration.ofHours(24),
+          3,
+          Duration.ofSeconds(30),
+          Duration.ofMinutes(5));
 
   @Autowired private JdbcClient jdbcClient;
 
@@ -271,19 +274,163 @@ class SuspendingAiCapabilityInvokerIntegrationTest extends AbstractPersistenceIn
   }
 
   @Test
-  void aProbeThatFailsWithoutRefusingTheConfigurationLetsTheNextCallerProbe() {
+  void aProbeThatFailsTransientlySuspendsAgainSoThatNoItemAttemptIsUsed() {
     delegate.willFail(configurationRefusal());
     call(invoker());
     clock.advance(Duration.ofMinutes(10));
     delegate.willFail(transientFailure());
 
     AiCapabilityOutcome<String> failedProbe = call(invoker());
-    delegate.willSucceed("recovered");
-    AiCapabilityOutcome<String> nextProbe = call(invoker());
+    AiCapabilityOutcome<String> immediatelyAfter = call(invoker());
 
-    assertThat(error(failedProbe).capabilitySuspended()).isFalse();
-    assertThat(nextProbe).isInstanceOf(Produced.class);
+    assertThat(error(failedProbe).capabilitySuspended()).isTrue();
+    assertThat(error(immediatelyAfter).capabilitySuspended()).isTrue();
+    assertThat(delegate.calls()).as("one refusal, then one probe").isEqualTo(2);
+  }
+
+  @Test
+  void aProbeWhoseCallerNeverReportedIsTakenOverOnceItsLeaseExpires() {
+    delegate.willFail(configurationRefusal());
+    call(invoker());
+    clock.advance(Duration.ofMinutes(10));
+    // A caller claimed the probe and died before reporting.
+    assertThat(
+            store()
+                .claimProbe(
+                    capability, clock.instant(), clock.instant().plus(PROPERTIES.probeLease())))
+        .isTrue();
+    delegate.willSucceed("recovered");
+
+    assertThat(error(call(invoker())).capabilitySuspended()).isTrue();
+    clock.advance(PROPERTIES.probeLease());
+
+    assertThat(call(invoker())).isInstanceOf(Produced.class);
     assertThat(store().find(capability)).isEmpty();
+  }
+
+  @Test
+  void aProlongedOutageLetsAtMostTwoFailuresReachTheCallers() {
+    delegate.willFail(transientFailure());
+    int failuresChargedToCallers = 0;
+
+    // 24 hours of outage, one call a minute.
+    for (int minute = 0; minute < 24 * 60; minute++) {
+      if (!error(call(invoker())).capabilitySuspended()) {
+        failuresChargedToCallers++;
+      }
+      clock.advance(Duration.ofMinutes(1));
+    }
+
+    assertThat(failuresChargedToCallers).isEqualTo(2);
+    assertThat(delegate.calls())
+        .as("three calls open the circuit, then one probe per cooldown of at most 5 minutes")
+        .isLessThanOrEqualTo(3 + 24 * 60 / 5 + 4);
+  }
+
+  @Test
+  void aTransientSuspensionEndsQuicklyOnceTheProviderIsBack() {
+    delegate.willFail(transientFailure());
+    for (int minute = 0; minute < 120; minute++) {
+      call(invoker());
+      clock.advance(Duration.ofMinutes(1));
+    }
+    delegate.willSucceed("recovered");
+    clock.advance(PROPERTIES.transientMaxCooldown());
+
+    assertThat(call(invoker())).isInstanceOf(Produced.class);
+  }
+
+  @Test
+  void theFirstTransientSuspensionLastsThirtySeconds() {
+    delegate.willFail(transientFailure());
+    SuspendingAiCapabilityInvoker invoker = invoker();
+    call(invoker);
+    call(invoker);
+    call(invoker);
+    delegate.willSucceed("recovered");
+
+    clock.advance(Duration.ofSeconds(29));
+    assertThat(error(call(invoker)).capabilitySuspended()).isTrue();
+    clock.advance(Duration.ofSeconds(1));
+
+    assertThat(call(invoker)).isInstanceOf(Produced.class);
+  }
+
+  @Test
+  void aRefusedConfigurationKeepsItsLongCooldown() {
+    delegate.willFail(configurationRefusal());
+    call(invoker());
+    delegate.willSucceed("fixed");
+    clock.advance(PROPERTIES.transientMaxCooldown());
+
+    assertThat(error(call(invoker())).capabilitySuspended()).isTrue();
+  }
+
+  private static AiError invalidRequest() {
+    return new AiError(
+        "AI_REQUEST_INVALID", "request", false, "payload is invalid", UUID.randomUUID(), Map.of());
+  }
+
+  @Test
+  void aSingleInvalidRequestIsBlamedOnItsInputAndLeavesTheCapabilityAvailable() {
+    delegate.willFail(invalidRequest());
+
+    AiCapabilityOutcome<String> outcome = call(invoker());
+
+    assertThat(error(outcome).rejectsThisInput()).isTrue();
+    assertThat(error(outcome).capabilitySuspended()).isFalse();
+    assertThat(store().find(capability)).isEmpty();
+  }
+
+  @Test
+  void invalidRequestsSeparatedBySuccessesNeverSuspend() {
+    SuspendingAiCapabilityInvoker invoker = invoker();
+    for (int round = 0; round < 5; round++) {
+      delegate.willFail(invalidRequest());
+      call(invoker);
+      delegate.willSucceed("works");
+      call(invoker);
+    }
+
+    assertThat(store().find(capability)).isEmpty();
+  }
+
+  @Test
+  void aSuccessBetweenTransientFailuresResetsTheirCount() {
+    SuspendingAiCapabilityInvoker invoker = invoker();
+    for (int round = 0; round < 3; round++) {
+      delegate.willFail(transientFailure());
+      call(invoker);
+      call(invoker);
+      delegate.willSucceed("works");
+      call(invoker);
+    }
+
+    assertThat(store().find(capability)).isEmpty();
+  }
+
+  @Test
+  void aSeriesOfContractMismatchesSuspendsTheCapabilityEvenWhenItWasKnownToWork() {
+    delegate.willSucceed("works");
+    call(invoker());
+    delegate.willFail(
+        new AiError(
+            "AI_CONTRACT_VIOLATION",
+            "contract",
+            false,
+            "the AI result does not match",
+            UUID.randomUUID(),
+            Map.of()));
+
+    AiCapabilityOutcome<String> first = call(invoker());
+    AiCapabilityOutcome<String> second = call(invoker());
+    AiCapabilityOutcome<String> third = call(invoker());
+    call(invoker());
+
+    assertThat(error(first).rejectsThisInput()).isTrue();
+    assertThat(error(second).rejectsThisInput()).isTrue();
+    assertThat(error(third).capabilitySuspended()).isTrue();
+    assertThat(delegate.calls()).as("one success, three refusals, then nothing").isEqualTo(4);
   }
 
   @Test

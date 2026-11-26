@@ -1,5 +1,6 @@
 package org.signalengine.infrastructure.rag.indexing;
 
+import java.sql.Types;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -8,9 +9,12 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.signalengine.application.persistence.FailedAttemptKind;
+import org.signalengine.application.pipeline.RetryPolicy;
 import org.signalengine.rag.ComponentDescriptor;
 import org.signalengine.rag.chunking.Passage;
 import org.signalengine.rag.embedding.EmbeddingModelDescriptor;
+import org.signalengine.rag.indexing.AbandonedIndexing;
 import org.signalengine.rag.indexing.ContentReplacement;
 import org.signalengine.rag.indexing.IndexClaim;
 import org.signalengine.rag.indexing.IndexedPassage;
@@ -18,7 +22,10 @@ import org.signalengine.rag.indexing.IndexedPassageStore;
 import org.signalengine.rag.indexing.IndexingException;
 import org.signalengine.rag.indexing.StaleIndexClaimException;
 import org.signalengine.rag.provenance.Provenance;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -51,6 +58,8 @@ import tools.jackson.databind.json.JsonMapper;
 @Repository
 class PgVectorIndexedPassageStore implements IndexedPassageStore {
 
+  private static final Logger log = LoggerFactory.getLogger(PgVectorIndexedPassageStore.class);
+
   /** The fixed dimension of the {@code rag_passage_embedding.embedding} column (migration V11). */
   static final int COLUMN_DIMENSION = 768;
 
@@ -58,11 +67,35 @@ class PgVectorIndexedPassageStore implements IndexedPassageStore {
 
   private static final String CLAIM_CONTENT =
       """
-      INSERT INTO rag_content_index (content_id, revision, lease_until, created_at, updated_at)
-      VALUES (:contentId, 1, :leaseUntil, :now, :now)
+      INSERT INTO rag_content_index (
+          content_id, revision, lease_until, attempted_fingerprint, attempted_chunker_id,
+          attempted_chunker_version, created_at, updated_at)
+      VALUES (
+          :contentId, 1, :leaseUntil, :contentFingerprint, :chunkerId, :chunkerVersion, :now, :now)
       ON CONFLICT (content_id) DO UPDATE SET
           revision = rag_content_index.revision + 1,
           lease_until = :leaseUntil,
+          -- Failures counted for another content or chunker configuration do not carry over.
+          failed_attempts = CASE
+              WHEN (rag_content_index.attempted_fingerprint, rag_content_index.attempted_chunker_id,
+                    rag_content_index.attempted_chunker_version)
+                   IS DISTINCT FROM (:contentFingerprint, :chunkerId, :chunkerVersion)
+              THEN 0 ELSE rag_content_index.failed_attempts END,
+          unexpected_failures = CASE
+              WHEN (rag_content_index.attempted_fingerprint, rag_content_index.attempted_chunker_id,
+                    rag_content_index.attempted_chunker_version)
+                   IS DISTINCT FROM (:contentFingerprint, :chunkerId, :chunkerVersion)
+              THEN 0 ELSE rag_content_index.unexpected_failures END,
+          time_budget_overruns = CASE
+              WHEN (rag_content_index.attempted_fingerprint, rag_content_index.attempted_chunker_id,
+                    rag_content_index.attempted_chunker_version)
+                   IS DISTINCT FROM (:contentFingerprint, :chunkerId, :chunkerVersion)
+              THEN 0 ELSE rag_content_index.time_budget_overruns END,
+          next_attempt_at = NULL,
+          blocked_since = NULL,
+          attempted_fingerprint = :contentFingerprint,
+          attempted_chunker_id = :chunkerId,
+          attempted_chunker_version = :chunkerVersion,
           updated_at = :now
       WHERE (rag_content_index.lease_until IS NULL OR rag_content_index.lease_until <= :now)
         AND (rag_content_index.indexed_at IS NULL
@@ -144,6 +177,12 @@ class PgVectorIndexedPassageStore implements IndexedPassageStore {
           indexed_at = :now,
           lease_until = NULL,
           failed_attempts = 0,
+          unexpected_failures = 0,
+          time_budget_overruns = 0,
+          next_attempt_at = NULL,
+          blocked_since = NULL,
+          last_failure_reason = NULL,
+          last_failure_recoverable = NULL,
           content_fingerprint = :contentFingerprint,
           chunker_id = :chunkerId,
           chunker_version = :chunkerVersion,
@@ -159,24 +198,80 @@ class PgVectorIndexedPassageStore implements IndexedPassageStore {
       """
       UPDATE rag_content_index SET
           lease_until = NULL,
-          failed_attempts = failed_attempts + CASE WHEN :countAsFailedAttempt THEN 1 ELSE 0 END,
           updated_at = :now
+      WHERE content_id = :contentId AND revision = :revision
+      """;
+
+  private static final String COUNT_FAILED_ABANDONMENT =
+      """
+      UPDATE rag_content_index SET
+          lease_until = NULL,
+          failed_attempts =
+              failed_attempts + CASE WHEN :cause = 'FAILED_ATTEMPT' THEN 1 ELSE 0 END,
+          unexpected_failures =
+              unexpected_failures + CASE WHEN :cause = 'UNEXPECTED_ERROR' THEN 1 ELSE 0 END,
+          time_budget_overruns =
+              time_budget_overruns + CASE WHEN :cause = 'TIME_BUDGET_EXCEEDED' THEN 1 ELSE 0 END,
+          last_failure_reason = :reason,
+          last_failure_recoverable = :recoverable,
+          updated_at = :now
+      WHERE content_id = :contentId AND revision = :revision
+      RETURNING CASE :cause
+          WHEN 'FAILED_ATTEMPT' THEN failed_attempts
+          WHEN 'UNEXPECTED_ERROR' THEN unexpected_failures
+          ELSE time_budget_overruns END
+      """;
+
+  private static final String BLOCK_REJECTED_CONTENT =
+      """
+      UPDATE rag_content_index SET
+          lease_until = NULL,
+          next_attempt_at = NULL,
+          blocked_since = :now,
+          last_failure_reason = :reason,
+          last_failure_recoverable = :recoverable,
+          updated_at = :now
+      WHERE content_id = :contentId AND revision = :revision
+      """;
+
+  private static final String SCHEDULE_NEXT_ATTEMPT =
+      """
+      UPDATE rag_content_index SET
+          next_attempt_at = :nextAttemptAt,
+          blocked_since = :blockedSince
       WHERE content_id = :contentId AND revision = :revision
       """;
 
   private final JdbcClient jdbcClient;
   private final Duration claimLease;
+  private final RetryPolicy retryPolicy;
+  private final int maxTimeBudgetOverruns;
   private final Clock clock;
   private final ObjectMapper objectMapper = JsonMapper.builder().build();
 
   @Autowired
-  PgVectorIndexedPassageStore(JdbcClient jdbcClient, RagIndexingProperties properties) {
-    this(jdbcClient, properties.claimLease(), Clock.systemUTC());
+  PgVectorIndexedPassageStore(
+      JdbcClient jdbcClient,
+      RagIndexingProperties properties,
+      @Qualifier("indexingRetryPolicy") RetryPolicy retryPolicy) {
+    this(
+        jdbcClient,
+        properties.claimLease(),
+        retryPolicy,
+        properties.maxTimeBudgetOverruns(),
+        Clock.systemUTC());
   }
 
-  PgVectorIndexedPassageStore(JdbcClient jdbcClient, Duration claimLease, Clock clock) {
+  PgVectorIndexedPassageStore(
+      JdbcClient jdbcClient,
+      Duration claimLease,
+      RetryPolicy retryPolicy,
+      int maxTimeBudgetOverruns,
+      Clock clock) {
     this.jdbcClient = jdbcClient;
     this.claimLease = claimLease;
+    this.retryPolicy = retryPolicy;
+    this.maxTimeBudgetOverruns = maxTimeBudgetOverruns;
     this.clock = clock;
   }
 
@@ -238,13 +333,70 @@ class PgVectorIndexedPassageStore implements IndexedPassageStore {
   }
 
   @Override
-  public void abandon(IndexClaim claim, boolean countAsFailedAttempt) {
+  @Transactional
+  public void abandon(IndexClaim claim, AbandonedIndexing abandonment) {
+    Instant now = clock.instant();
+    if (abandonment.cause() == AbandonedIndexing.Cause.NOT_THE_CONTENT) {
+      jdbcClient
+          .sql(ABANDON_CLAIM)
+          .param("contentId", claim.contentId())
+          .param("revision", claim.revision())
+          .param("now", utc(now))
+          .update();
+      return;
+    }
+    if (abandonment.cause() == AbandonedIndexing.Cause.CONTENT_REJECTED) {
+      int blocked =
+          jdbcClient
+              .sql(BLOCK_REJECTED_CONTENT)
+              .param("contentId", claim.contentId())
+              .param("revision", claim.revision())
+              .param("reason", abandonment.reason())
+              .param("recoverable", abandonment.recoverable())
+              .param("now", utc(now))
+              .update();
+      if (blocked == 1) {
+        log.warn("Indexing of content {} is blocked: {}", claim.contentId(), abandonment.reason());
+      }
+      return;
+    }
+    Optional<Integer> failures =
+        jdbcClient
+            .sql(COUNT_FAILED_ABANDONMENT)
+            .param("contentId", claim.contentId())
+            .param("revision", claim.revision())
+            .param("cause", abandonment.cause().name())
+            .param("reason", abandonment.reason())
+            .param("recoverable", abandonment.recoverable())
+            .param("now", utc(now))
+            .query(Integer.class)
+            .optional();
+    if (failures.isEmpty()) {
+      return; // the claim was superseded
+    }
+    int limit =
+        switch (abandonment.cause()) {
+          case UNEXPECTED_ERROR -> retryPolicy.limitFor(FailedAttemptKind.UNEXPECTED);
+          case TIME_BUDGET_EXCEEDED -> maxTimeBudgetOverruns;
+          default -> retryPolicy.limitFor(FailedAttemptKind.TRANSIENT);
+        };
+    boolean exhausted = failures.get() >= limit;
+    if (exhausted) {
+      log.warn(
+          "Indexing of content {} is blocked after {} failures: {}",
+          claim.contentId(),
+          failures.get(),
+          abandonment.reason());
+    }
     jdbcClient
-        .sql(ABANDON_CLAIM)
+        .sql(SCHEDULE_NEXT_ATTEMPT)
         .param("contentId", claim.contentId())
         .param("revision", claim.revision())
-        .param("countAsFailedAttempt", countAsFailedAttempt)
-        .param("now", utc(clock.instant()))
+        .param(
+            "nextAttemptAt",
+            exhausted ? null : utc(now.plus(retryPolicy.delayAfter(failures.get()))),
+            Types.TIMESTAMP_WITH_TIMEZONE)
+        .param("blockedSince", exhausted ? utc(now) : null, Types.TIMESTAMP_WITH_TIMEZONE)
         .update();
   }
 

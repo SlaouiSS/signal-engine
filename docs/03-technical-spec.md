@@ -649,7 +649,9 @@ rest of the code is provider-agnostic.
 
 ### 6.5 Scheduling
 
-- Recurring collection and retry sweeps are scheduled in the backend.
+- Recurring collection and retry sweeps are scheduled in the backend: one bounded
+  pipeline cycle at startup, then a fixed delay after each cycle ends
+  (`docs/adr/0019-pipeline-automation.md`).
 - The MVP runs a single backend instance; scheduling assumes no multi-node
   coordination. If multi-instance is ever needed, a DB-based lock (e.g.
   ShedLock) can be added — not now (Section 25).
@@ -832,7 +834,7 @@ Every response carries, at minimum:
 
 ### 8.5 Failure and timeout behavior
 
-- The Java client sets an explicit per-call **timeout** (proposed defaults in
+- The Java client sets an explicit per-call **timeout** (values in
   Section 13.4) that is **longer** than the Python service's own internal model
   timeout, so the layer that best understands the failure reports it first.
 - Java treats transport/timeout/5xx as **retryable** (bounded); schema
@@ -936,7 +938,7 @@ and in the adapter.
 
 - Each LLM call has an explicit timeout from capability configuration.
 - Local inference is slow; timeouts are generous by default and tunable
-  (proposed defaults, Section 13.4). Timeout → retryable failure with backoff,
+  (Section 13.4). Timeout → retryable failure with backoff,
   bounded.
 
 ### 9.8 Source grounding
@@ -1188,37 +1190,65 @@ retrieval strategy are for `05-`, `07-`, and `08-`.
   items, and so does a rejection that only looks specific to one request (400, 422…) while the
   capability has not been seen working recently; once it has, that rejection fails the item
   (`docs/adr/0018-pipeline-reliability.md`).
-- **Non-retryable:** validation failures, contract violations, domain rule
-  violations, invalid AI output after the bounded repair, "no usable content".
+- **Non-retryable:** validation failures, domain rule violations, invalid AI
+  output after the bounded repair, "no usable content".
+- **Input over a known capability limit** is detected before the call: the item is
+  set aside (`FAILED`, `retryable = true`) with a diagnostic, never truncated or
+  split (`docs/adr/0019-pipeline-automation.md`).
+- A **contract violation or invalid request** returned by the AI service is
+  ambiguous: a single one sets its item aside the same way; the third in a row
+  with no success suspends the capability instead.
 - Non-retryable failures move the item to `FAILED` with a stable reason code and
   stop consuming retry budget.
 
 ### 13.3 Retry and backoff
 
 - **Bounded** retries with **exponential backoff and jitter**.
-- **Proposed defaults** (all configurable, all open to tuning — Section 24, T9):
-  - Python capability call: up to **3** attempts, base delay **2s**, factor
-    **2.0**, max delay **30s**.
+- **Values in force** (all configurable, provisional, open to tuning — Section 24,
+  T9):
+  - Pipeline AI stages: up to **3** attempts **per item and stage**, spread across
+    pipeline cycles (base delay **1h**, factor **2.0**, max **24h**). No immediate
+    in-call retry.
+  - When attempts are exhausted, the item moves to `FAILED` with
+    `retryable = true`; its data is preserved.
+  - A systemic or uncertain failure, including **3** consecutive transient
+    failures of a capability, suspends the capability and consumes no item
+    attempt. A failed probe consumes none either, so a capability that fails
+    continuously is called at most once per cooldown, with no limit on the number
+    of probes. The cooldown after transient failures is **30s**, doubled up to
+    **5min**, because interactive requests share the capabilities.
+  - A transient failure never moves an item to a non-retryable `FAILED` state.
+  - Exhausted retryable work is requeued only by an explicit operator action.
+  - An unexpected error consumes no attempt but has a limit of its own (**5**).
+  - Knowledge base indexing: up to **5** attempts per content version and chunker
+    configuration.
   - Source collection: retried on the **next scheduled collection**, not in a
     tight loop; a per-source failure counter is recorded. Backoff/limit per
     source is an open product question (`docs/02-functional-spec.md` Q10).
   - LLM structured-output repair: **1** in-call repair attempt (Section 9.6).
 - Retries are only applied to retryable categories.
 
-### 13.4 Timeouts (proposed defaults)
+### 13.4 Timeouts
 
-All configurable; values chosen conservatively for **local** inference and
-subject to tuning (Section 24, T9):
+These are the values in force. All are configurable and provisional, open to
+tuning (Section 24, T9).
 
-- Source fetch: **30s** connect+read (per source type may override).
-- Python capability HTTP call (Java client): **120s**.
-- LLM chat call (inside Python): **90s**.
-- Embedding call: **30s**.
-- DB statement timeout: **15s** for interactive queries; batch/processing
-  queries may set their own.
+| Operation | Limit |
+|---|---|
+| Source fetch, connect, redirects and body included (a source type may override) | **30s** |
+| Java → Python capability call | **280s** (connect **5s**) |
+| LLM operation inside Python, repair attempt included | **240s** in the deployed stack (**60s** if unset) |
+| Embedding call inside Python | **30s** |
+| DB statement / lock wait / transaction | **15s** / **5s** / **60s** |
+| DB socket read | **60s** |
+| Pipeline stage and indexing time budgets | `docs/adr/0019-pipeline-automation.md` |
 
 Rule: an outer timeout is always greater than the inner timeout it wraps
 (Section 8.5).
+
+*History:* the first version of this section proposed 120s for the capability
+call and 90s for the LLM call. They were replaced by the values above after
+CPU-only inference latency was measured, and are no longer in force.
 
 ### 13.5 Typed errors across the Java/Python boundary
 

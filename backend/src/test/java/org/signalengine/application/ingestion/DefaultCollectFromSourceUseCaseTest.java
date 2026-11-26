@@ -224,7 +224,7 @@ class DefaultCollectFromSourceUseCaseTest {
     Source broken = enabledSource(UUID.randomUUID());
     Source disabled =
         new Source(UUID.randomUUID(), "http", "d", "https://d.example.test", false, null, null);
-    when(sources.findAll()).thenReturn(List.of(ok, broken, disabled));
+    when(sources.findAllLeastRecentlyCollectedFirst()).thenReturn(List.of(ok, broken, disabled));
     when(sources.findById(ok.id())).thenReturn(Optional.of(ok));
     when(sources.findById(broken.id())).thenReturn(Optional.of(broken));
     when(registry.collectorFor(ok)).thenReturn(Optional.of(collector));
